@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiki In Africa · Learning Resources</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#resources">Skip to resources</a>
+<div class="kente"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+<nav>
+  <button class="nav-brand" id="navBrand" title="Reset to default view"><span class="mark"></span> Wiki In Africa <span class="sub">· Wikibase</span></button>
+  <ul class="nav-links">
+    <li><a href="#resources">Resources</a></li>
+    <li><a href="#campaigns">Campaigns</a></li>
+    <li><a href="#paths">Learning Paths</a></li>
+    <li><a href="https://wikiinafrica.wikibase.cloud/wiki/Special:NewItem" target="_blank" rel="noopener">Add Resource</a></li>
+    <li><a href="https://wikiinafrica.wikibase.cloud/query" target="_blank" rel="noopener">SPARQL ↗</a></li>
+  </ul>
+  <span class="nav-tag">wikibase.cloud</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">Wiki In Africa Learning Resources</div>
+      <h1>Every training resource.<br><em>One place, one query away.</em></h1>
+      <p class="hero-sub">A structured, searchable knowledge base of Wiki In Africa training materials — organised by campaign, skill level, project and language, and queryable directly as open data.</p>
+      <div class="hero-btns">
+        <a href="#resources" class="btn-primary">Browse Resources</a>
+        <a href="#paths" class="btn-ghost">Find your learning path</a>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-box"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Total Resources</div></div>
+      <div class="stat-box"><div class="stat-num" id="statCampaigns">—</div><div class="stat-label">Campaigns</div></div>
+      <div class="stat-box"><div class="stat-num" id="statProjects">—</div><div class="stat-label">Projects</div></div>
+      <div class="stat-box"><div class="stat-num">100%</div><div class="stat-label">Free &amp; Open</div></div>
+    </div>
+  </div>
+  <div class="stat-bar">
+    <div class="stat-bar-inner">
+      <div class="sbi"><div class="sbi-num" id="sbTotal">—</div><div class="sbi-label">Resources</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbBeginner">—</div><div class="sbi-label">Beginner</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbIntermediate">—</div><div class="sbi-label">Intermediate</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbAdvanced">—</div><div class="sbi-label">Advanced</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbWLA">—</div><div class="sbi-label">Wiki Loves Africa</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbReviewed">—</div><div class="sbi-label">Reviewed</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH / FILTERS -->
+<div class="search-section" id="resources">
+  <div class="search-section-inner">
+    <div class="section-eyebrow">Resource Library</div>
+    <h2>Find training materials</h2>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search by title, topic, creator, format…" autocomplete="off">
+      <button id="clearBtn" title="Clear">✕</button>
+    </div>
+    <div class="filters">
+      <span class="filter-label">Skill:</span>
+      <button class="chip active" data-skill="all">All</button>
+      <button class="chip" data-skill="Q26">Beginner</button>
+      <button class="chip" data-skill="Q27">Intermediate</button>
+      <button class="chip" data-skill="Q28">Advanced</button>
+      <select class="fselect" id="campaignFilter"><option value="all">All campaigns</option></select>
+      <select class="fselect" id="formatFilter"><option value="all">All formats</option></select>
+      <select class="fselect" id="languageFilter"><option value="all">All languages</option></select>
+      <select class="fselect" id="topicFilter"><option value="all">All topics</option></select>
+      <select class="fselect" id="reviewFilter"><option value="all">Any review status</option></select>
+    </div>
+    <div class="improve-strip" id="improveStrip">
+      <span class="filter-label">Improve data:</span>
+      <button class="chip chip--missing" data-missing="creator">No creator</button>
+      <button class="chip chip--missing" data-missing="url">No link</button>
+      <button class="chip chip--missing" data-missing="language">No language</button>
+      <button class="chip chip--missing" data-missing="topic">No topic</button>
+      <button class="chip chip--missing" data-missing="year">No year</button>
+      <button class="chip chip--missing" data-missing="skill">No skill level</button>
+    </div>
+  </div>
+</div>
+
+<div class="active-filter-strip" id="activeFilters"></div>
+
+<!-- RESULTS META / TOOLBAR -->
+<div class="results-meta">
+  <div class="results-count">Showing <strong id="resultCount">—</strong> resources</div>
+  <div class="toolbar-actions">
+    <div class="view-toggle">
+      <button class="view-btn active" id="gridBtn" title="Grid">⊞</button>
+      <button class="view-btn" id="listBtn" title="List">☰</button>
+    </div>
+    <button class="tool-btn" id="copyLinkBtn">🔗 Copy link</button>
+    <button class="tool-btn" id="exportCsvBtn" disabled>⬇ Export CSV</button>
+    <select id="sortSelect">
+      <option value="title">Sort by title</option>
+      <option value="campaign">Sort by campaign</option>
+      <option value="skill">Sort by skill level</option>
+      <option value="year-desc">Newest first</option>
+      <option value="year-asc">Oldest first</option>
+    </select>
+  </div>
+</div>
+
+<!-- CARDS -->
+<div id="cardsContainer">
+  <div class="loading"><div class="spinner"></div>Loading resources…</div>
+  <div id="emptyState"><div class="ei">🔎</div><p>No resources match your search.<br>Try different terms or clear the filters.</p></div>
+</div>
+<nav class="pagination" id="pagination" aria-label="Results pages"></nav>
+
+<!-- CAMPAIGNS -->
+<div class="campaigns-section" id="campaigns">
+  <div class="campaigns-inner">
+    <div class="section-eyebrow">Browse by Programme</div>
+    <h2>Wiki In Africa Campaigns</h2>
+    <div class="camps-grid" id="campsGrid"></div>
+  </div>
+</div>
+
+<!-- LEARNING PATHS -->
+<div class="paths-section" id="paths">
+  <div class="paths-inner">
+    <div class="section-eyebrow">Learning Pathways</div>
+    <h2>Where do you start?</h2>
+    <p class="paths-sub">Find resources matched to your experience level.</p>
+    <div class="paths-grid">
+      <div class="path-card beginner">
+        <div class="path-lbl">Beginner</div>
+        <div class="path-num" id="pathBeg">—</div>
+        <div class="path-title">New to Wikimedia? Start here.</div>
+        <button class="path-btn" data-skill-jump="Q26">Show beginner resources →</button>
+      </div>
+      <div class="path-card intermediate">
+        <div class="path-lbl">Intermediate</div>
+        <div class="path-num" id="pathInt">—</div>
+        <div class="path-title">Ready to go deeper.</div>
+        <button class="path-btn" data-skill-jump="Q27">Show intermediate resources →</button>
+      </div>
+      <div class="path-card advanced">
+        <div class="path-lbl">Advanced</div>
+        <div class="path-num" id="pathAdv">—</div>
+        <div class="path-title">Pushing the frontier.</div>
+        <button class="path-btn" data-skill-jump="Q28">Show advanced resources →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS -->
+<div class="projects-section">
+  <div class="projects-inner">
+    <div>
+      <h2>Browse by Wikimedia Project</h2>
+      <p class="projects-sub">Filter by the platform you are working on</p>
+    </div>
+    <div class="proj-pills" id="projPills"></div>
+  </div>
+</div>
+
+<!-- SPARQL -->
+<div class="sparql-section">
+  <div class="sparql-inner">
+    <div>
+      <h2>Query this Wikibase</h2>
+      <p>All resources are structured data — query them directly using SPARQL to build reports, exports or custom views. This site's own data refreshes on a schedule; the query service is always live.</p>
+      <a class="sparql-link" href="https://wikiinafrica.wikibase.cloud/query" target="_blank" rel="noopener">Open Query Service ↗</a>
+    </div>
+    <pre class="sparql-code">PREFIX wd:  &lt;https://wikiinafrica.wikibase.cloud/entity/&gt;
+PREFIX wdt: &lt;https://wikiinafrica.wikibase.cloud/prop/direct/&gt;
+PREFIX wikibase: &lt;http://wikiba.se/ontology#&gt;
+PREFIX bd:  &lt;http://www.bigdata.com/rdf#&gt;
+SELECT ?item ?itemLabel ?creators
+WHERE {
+  ?item wdt:P2 wd:Q4 .
+  OPTIONAL {
+    SELECT ?item (GROUP_CONCAT(DISTINCT ?c; separator=" &amp; ") AS ?creators)
+    WHERE { ?item wdt:P8 ?c . }
+    GROUP BY ?item
+  }
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "en" .
+  }
+}
+ORDER BY ?itemLabel</pre>
+  </div>
+</div>
+
+<div class="kente"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<footer>
+  <strong>Wiki In Africa · Learning Resources Wikibase</strong><br>
+  All resources are free and openly licensed ·
+  <a href="https://meta.wikimedia.org/wiki/Wiki_In_Africa" target="_blank" rel="noopener">Meta-Wiki</a> ·
+  <a href="https://meta.wikimedia.org/wiki/Wiki_In_Africa/Resources" target="_blank" rel="noopener">Resources page</a> ·
+  <a href="https://wikiinafrica.wikibase.cloud" target="_blank" rel="noopener">Wikibase</a><br>
+  <span style="opacity:.6;font-size:.7rem;">Data harvested from wikiinafrica.wikibase.cloud</span>
+</footer>
+
+<noscript><div style="padding:20px;text-align:center;">This page needs JavaScript to load and filter the resource catalogue.</div></noscript>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
