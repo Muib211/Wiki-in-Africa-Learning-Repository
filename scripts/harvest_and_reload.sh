@@ -2,17 +2,16 @@
 # Harvest fresh data from the Wiki In Africa Wikibase, then tell the running
 # Flask app to reload it into memory. Meant to be run on a schedule (see
 # README.md for the Toolforge job setup) rather than by hand.
-#
-# Required environment variables:
-#   APP_URL             Base URL of the running app, e.g.
-#                        https://wikiinafrica-resources.toolforge.org
-#   ADMIN_RELOAD_TOKEN   Must match the value app.py was started with.
-#                        Leave both unset only for local development.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 APP_URL="${APP_URL:-http://localhost:5000}"
+
+# Activate the venv so `python3` can find requests, flask, etc. -- job
+# containers start with a bare system Python otherwise, which is what
+# caused "ModuleNotFoundError: No module named 'requests'" the first time.
+source "$HOME/www/python/venv/bin/activate"
 
 echo "[$(date -u +%FT%TZ)] Starting harvest..."
 python3 harvest_wikiinafrica_resources.py --pretty
