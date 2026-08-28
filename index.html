@@ -1,239 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Wiki In Africa — Learning Resources</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-  <link rel="stylesheet" href="assets/css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiki In Africa · Learning Resources</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-<header class="site-header">
-  <div class="container header-inner">
-    <div class="brand-block">
-      <h1 id="brandTitle">Wiki In Africa</h1>
-      <h2>Learning Resources</h2>
-      <p id="dataUpdatedAt" class="data-updated-at">Data last updated: loading…</p>
+<a class="skip-link" href="#resources">Skip to resources</a>
+<div class="kente"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+
+<nav>
+  <button class="nav-brand" id="navBrand" title="Reset to default view"><span class="mark"></span> Wiki In Africa <span class="sub">· Wikibase</span></button>
+  <ul class="nav-links">
+    <li><a href="#resources">Resources</a></li>
+    <li><a href="#campaigns">Campaigns</a></li>
+    <li><a href="#paths">Learning Paths</a></li>
+    <li><a href="https://wikiinafrica.wikibase.cloud/wiki/Special:NewItem" target="_blank" rel="noopener">Add Resource</a></li>
+    <li><a href="https://wikiinafrica.wikibase.cloud/query" target="_blank" rel="noopener">SPARQL ↗</a></li>
+  </ul>
+  <span class="nav-tag">wikibase.cloud</span>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">Wiki In Africa Learning Resources</div>
+      <h1>Every training resource.<br><em>One place, one query away.</em></h1>
+      <p class="hero-sub">A structured, searchable knowledge base of Wiki In Africa training materials — organised by campaign, skill level, project and language, and queryable directly as open data.</p>
+      <div class="hero-btns">
+        <a href="#resources" class="btn-primary">Browse Resources</a>
+        <a href="#paths" class="btn-ghost">Find your learning path</a>
+      </div>
     </div>
-    <div class="search-panel">
-      <input id="searchInput" type="search" placeholder="Search resources" aria-label="Search resources" autocomplete="off">
-      <button id="clearSearch" type="button">Clear</button>
+    <div class="hero-stats">
+      <div class="stat-box"><div class="stat-num" id="statTotal">—</div><div class="stat-label">Total Resources</div></div>
+      <div class="stat-box"><div class="stat-num" id="statCampaigns">—</div><div class="stat-label">Campaigns</div></div>
+      <div class="stat-box"><div class="stat-num" id="statProjects">—</div><div class="stat-label">Projects</div></div>
+      <div class="stat-box"><div class="stat-num">100%</div><div class="stat-label">Free &amp; Open</div></div>
     </div>
-    <nav class="site-nav" aria-label="Site navigation">
-      <button type="button" id="navAbout" class="nav-link">About</button>
-      <a href="https://github.com/Muib211/Wiki-in-Africa-Learning-Repository" class="nav-link" target="_blank" rel="noopener">GitHub</a>
-      <button type="button" id="navContribute" class="nav-link">Contribute to Wikibase</button>
-    </nav>
   </div>
-</header>
-
-<main id="mainContent" class="container app-layout">
-  <aside class="filters">
-    <div class="filters-header">
-      <h2>Filters</h2>
-      <button id="resetFilters" type="button" class="reset-button">Reset</button>
-    </div>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion" open>
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">🎯</span>Campaign</span>
-        <span id="campaignCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <div id="campaignFilters" class="resource-type-filter-list"></div>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">🎓</span>Skill level</span>
-        <span id="skillCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <div id="skillFilters" class="resource-type-filter-list"></div>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">🏷️</span>Format</span>
-        <span id="formatCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <div id="formatFilters" class="resource-type-filter-list"></div>
-      </div>
-    </details>
-
-    <div class="filter-group">
-      <label for="languageFilter"><span class="collapsible-filter-icon" aria-hidden="true">🌐</span>Language</label>
-      <select id="languageFilter">
-        <option value="">All languages</option>
-      </select>
-    </div>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">📅</span>Year</span>
-        <span id="yearFilterCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <div id="yearFilters" class="year-filter-list"></div>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">✅</span>Review status</span>
-        <span id="reviewCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <div id="reviewFilters" class="resource-type-filter-list"></div>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group improve-data-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">🛠️</span>Improve data</span>
-        <span id="improveDataCount" class="collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <label class="checkbox-row"><input type="checkbox" id="missingCreatorFilter"><span class="checkbox-label">No creator</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="missingUrlFilter"><span class="checkbox-label">No link</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="missingLanguageFilter"><span class="checkbox-label">No language</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="missingTopicFilter"><span class="checkbox-label">No topic</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="missingYearFilter"><span class="checkbox-label">No year</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="missingSkillFilter"><span class="checkbox-label">No skill level</span></label>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">👤</span>Creators</span>
-        <span id="creatorCount" class="publisher-count collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <input id="creatorSearchInput" class="publisher-search" type="search" placeholder="Search creators">
-        <div id="creatorFilters" class="publisher-filter-list"></div>
-      </div>
-    </details>
-
-    <details class="filter-group collapsible-filter-group" name="filterAccordion">
-      <summary>
-        <span class="collapsible-filter-title"><span class="collapsible-filter-icon" aria-hidden="true">🧩</span>Project</span>
-        <span id="projectCount" class="author-count collapsible-filter-count"></span>
-      </summary>
-      <div class="collapsible-filter-content">
-        <input id="projectSearchInput" class="author-search" type="search" placeholder="Search projects">
-        <div id="projectFilters" class="author-filter-list"></div>
-      </div>
-    </details>
-  </aside>
-
-  <section class="results-area" aria-label="Resource results">
-    <div id="summaryStats" class="summary-stats"></div>
-
-    <div class="results-toolbar">
-      <p id="resultCount" aria-live="polite">Loading resources…</p>
-      <div class="results-toolbar-actions">
-        <div class="view-toggle" role="group" aria-label="View mode">
-          <button type="button" id="viewGrid" class="view-toggle-button is-active" aria-label="Grid view" aria-pressed="true" title="Grid view">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-              <rect x="0" y="0" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="0" width="6" height="6" rx="1.5" fill="currentColor"/>
-              <rect x="0" y="9" width="6" height="6" rx="1.5" fill="currentColor"/><rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor"/>
-            </svg>
-          </button>
-          <button type="button" id="viewList" class="view-toggle-button" aria-label="List view" aria-pressed="false" title="List view">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
-              <rect x="0" y="1" width="15" height="2.5" rx="1.25" fill="currentColor"/><rect x="0" y="6.25" width="15" height="2.5" rx="1.25" fill="currentColor"/><rect x="0" y="11.5" width="15" height="2.5" rx="1.25" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-        <button id="copyLinkButton" type="button" class="copy-link-button">Copy link</button>
-        <button id="exportCsvButton" type="button" class="export-csv-button" disabled>Export CSV</button>
-        <select id="sortSelect">
-          <option value="title">Sort by title</option>
-          <option value="campaign">Sort by campaign</option>
-          <option value="skill">Sort by skill level</option>
-          <option value="year-desc">Newest first</option>
-          <option value="year-asc">Oldest first</option>
-        </select>
-      </div>
-    </div>
-
-    <div id="statusMessage"></div>
-    <div id="activeFilters"></div>
-    <div id="results" class="card-grid" aria-live="polite" aria-busy="true"></div>
-    <nav id="pagination" class="pagination" aria-label="Results pages"></nav>
-  </section>
-
-  <aside class="subject-panel">
-    <div class="subject-panel-header">
-      <h2>Topics</h2>
-      <p id="topicCount" class="subject-count"></p>
-    </div>
-    <input id="topicSearchInput" class="subject-search" type="search" placeholder="Search topics">
-    <div id="topicFilters" class="subject-filter-list"></div>
-  </aside>
-</main>
-
-<div id="languageInsightsModal" class="modal-backdrop" hidden>
-  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="languageInsightsTitle">
-    <div class="modal-header">
-      <div><p class="modal-kicker">Dataset insight</p><h2 id="languageInsightsTitle">Languages in this catalogue</h2></div>
-      <button id="closeLanguageInsights" type="button" class="modal-close" aria-label="Close language insights">×</button>
-    </div>
-    <div id="languageInsightsContent" class="language-modal-content"></div>
-  </div>
-</div>
-
-<div id="topicInsightsModal" class="modal-backdrop" hidden>
-  <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="topicInsightsTitle">
-    <div class="modal-header">
-      <div><p class="modal-kicker">Dataset insight</p><h2 id="topicInsightsTitle">Topics in this catalogue</h2></div>
-      <button id="closeTopicInsights" type="button" class="modal-close" aria-label="Close topic insights">×</button>
-    </div>
-    <div id="topicInsightsContent" class="language-modal-content"></div>
-  </div>
-</div>
-
-<div id="aboutModal" class="modal-backdrop" hidden>
-  <div class="modal-dialog modal-dialog--narrow" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitle">
-    <div class="modal-header">
-      <div><p class="modal-kicker">About</p><h2 id="aboutModalTitle">About this catalogue</h2></div>
-      <button id="closeAboutModal" type="button" class="modal-close" aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <p>This catalogue makes Wiki In Africa training and learning resources searchable and filterable, sourced from the <a href="https://wikiinafrica.wikibase.cloud" target="_blank" rel="noopener">Wiki In Africa Wikibase</a>.</p>
-      <p>Resources are organised by campaign, skill level, project, format, language and topic, and refresh automatically from the Wikibase on a schedule.</p>
-      <h3>Credits</h3>
-      <p>Built for <a href="https://meta.wikimedia.org/wiki/Wiki_In_Africa" target="_blank" rel="noopener">Wiki In Africa</a>. Source code on <a href="https://github.com/Muib211/Wiki-in-Africa-Learning-Repository" target="_blank" rel="noopener">GitHub</a>.</p>
+  <div class="stat-bar">
+    <div class="stat-bar-inner">
+      <div class="sbi"><div class="sbi-num" id="sbTotal">—</div><div class="sbi-label">Resources</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbBeginner">—</div><div class="sbi-label">Beginner</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbIntermediate">—</div><div class="sbi-label">Intermediate</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbAdvanced">—</div><div class="sbi-label">Advanced</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbWLA">—</div><div class="sbi-label">Wiki Loves Africa</div></div>
+      <div class="sbi-divider"></div>
+      <div class="sbi"><div class="sbi-num" id="sbReviewed">—</div><div class="sbi-label">Reviewed</div></div>
     </div>
   </div>
 </div>
 
-<div id="contributeModal" class="modal-backdrop" hidden>
-  <div class="modal-dialog modal-dialog--narrow" role="dialog" aria-modal="true" aria-labelledby="contributeModalTitle">
-    <div class="modal-header">
-      <div><p class="modal-kicker">Contributing</p><h2 id="contributeModalTitle">How to contribute</h2></div>
-      <button id="closeContributeModal" type="button" class="modal-close" aria-label="Close">×</button>
+<!-- SEARCH / FILTERS -->
+<div class="search-section" id="resources">
+  <div class="search-section-inner">
+    <div class="section-eyebrow">Resource Library</div>
+    <h2>Find training materials</h2>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search by title, topic, creator, format…" autocomplete="off">
+      <button id="clearBtn" title="Clear">✕</button>
     </div>
-    <div class="modal-body">
-      <h3>Add or improve a resource</h3>
-      <p>Visit <a href="https://wikiinafrica.wikibase.cloud" target="_blank" rel="noopener">wikiinafrica.wikibase.cloud</a> and log in to add new resources or improve existing ones.</p>
-      <h3>What makes a good resource entry?</h3>
-      <ul>
-        <li><strong>Campaign</strong> — which programme the resource belongs to.</li>
-        <li><strong>Skill level</strong> — beginner, intermediate, or advanced.</li>
-        <li><strong>Format</strong>, <strong>language</strong>, and <strong>topic</strong>.</li>
-        <li><strong>Creator</strong> and a <strong>link</strong> to the resource.</li>
-      </ul>
-      <p>Use the <em>Improve data</em> filter in the sidebar to find resources missing any of these fields.</p>
+    <div class="filters">
+      <span class="filter-label">Skill:</span>
+      <button class="chip active" data-skill="all">All</button>
+      <button class="chip" data-skill="Q26">Beginner</button>
+      <button class="chip" data-skill="Q27">Intermediate</button>
+      <button class="chip" data-skill="Q28">Advanced</button>
+      <select class="fselect" id="campaignFilter"><option value="all">All campaigns</option></select>
+      <select class="fselect" id="formatFilter"><option value="all">All formats</option></select>
+      <select class="fselect" id="languageFilter"><option value="all">All languages</option></select>
+      <select class="fselect" id="topicFilter"><option value="all">All topics</option></select>
+      <select class="fselect" id="reviewFilter"><option value="all">Any review status</option></select>
+    </div>
+    <div class="improve-strip" id="improveStrip">
+      <span class="filter-label">Improve data:</span>
+      <button class="chip chip--missing" data-missing="creator">No creator</button>
+      <button class="chip chip--missing" data-missing="url">No link</button>
+      <button class="chip chip--missing" data-missing="language">No language</button>
+      <button class="chip chip--missing" data-missing="topic">No topic</button>
+      <button class="chip chip--missing" data-missing="year">No year</button>
+      <button class="chip chip--missing" data-missing="skill">No skill level</button>
     </div>
   </div>
 </div>
 
-<button id="jumpToTop" class="jump-to-top" aria-label="Back to top" title="Back to top">↑</button>
-<noscript><div class="noscript-message">This page needs JavaScript to load and filter the resource catalogue.</div></noscript>
+<div class="active-filter-strip" id="activeFilters"></div>
+
+<!-- RESULTS META / TOOLBAR -->
+<div class="results-meta">
+  <div class="results-count">Showing <strong id="resultCount">—</strong> resources</div>
+  <div class="toolbar-actions">
+    <div class="view-toggle">
+      <button class="view-btn active" id="gridBtn" title="Grid">⊞</button>
+      <button class="view-btn" id="listBtn" title="List">☰</button>
+    </div>
+    <button class="tool-btn" id="copyLinkBtn">🔗 Copy link</button>
+    <button class="tool-btn" id="exportCsvBtn" disabled>⬇ Export CSV</button>
+    <select id="sortSelect">
+      <option value="title">Sort by title</option>
+      <option value="campaign">Sort by campaign</option>
+      <option value="skill">Sort by skill level</option>
+      <option value="year-desc">Newest first</option>
+      <option value="year-asc">Oldest first</option>
+    </select>
+  </div>
+</div>
+
+<!-- CARDS -->
+<div id="cardsContainer">
+  <div class="loading"><div class="spinner"></div>Loading resources…</div>
+  <div id="emptyState"><div class="ei">🔎</div><p>No resources match your search.<br>Try different terms or clear the filters.</p></div>
+</div>
+<nav class="pagination" id="pagination" aria-label="Results pages"></nav>
+
+<!-- CAMPAIGNS -->
+<div class="campaigns-section" id="campaigns">
+  <div class="campaigns-inner">
+    <div class="section-eyebrow">Browse by Programme</div>
+    <h2>Wiki In Africa Campaigns</h2>
+    <div class="camps-grid" id="campsGrid"></div>
+  </div>
+</div>
+
+<!-- LEARNING PATHS -->
+<div class="paths-section" id="paths">
+  <div class="paths-inner">
+    <div class="section-eyebrow">Learning Pathways</div>
+    <h2>Where do you start?</h2>
+    <p class="paths-sub">Find resources matched to your experience level.</p>
+    <div class="paths-grid">
+      <div class="path-card beginner">
+        <div class="path-lbl">Beginner</div>
+        <div class="path-num" id="pathBeg">—</div>
+        <div class="path-title">New to Wikimedia? Start here.</div>
+        <button class="path-btn" data-skill-jump="Q26">Show beginner resources →</button>
+      </div>
+      <div class="path-card intermediate">
+        <div class="path-lbl">Intermediate</div>
+        <div class="path-num" id="pathInt">—</div>
+        <div class="path-title">Ready to go deeper.</div>
+        <button class="path-btn" data-skill-jump="Q27">Show intermediate resources →</button>
+      </div>
+      <div class="path-card advanced">
+        <div class="path-lbl">Advanced</div>
+        <div class="path-num" id="pathAdv">—</div>
+        <div class="path-title">Pushing the frontier.</div>
+        <button class="path-btn" data-skill-jump="Q28">Show advanced resources →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS -->
+<div class="projects-section">
+  <div class="projects-inner">
+    <div>
+      <h2>Browse by Wikimedia Project</h2>
+      <p class="projects-sub">Filter by the platform you are working on</p>
+    </div>
+    <div class="proj-pills" id="projPills"></div>
+  </div>
+</div>
+
+<!-- SPARQL -->
+<div class="sparql-section">
+  <div class="sparql-inner">
+    <div>
+      <h2>Query this Wikibase</h2>
+      <p>All resources are structured data — query them directly using SPARQL to build reports, exports or custom views. This site's own data refreshes on a schedule; the query service is always live.</p>
+      <a class="sparql-link" href="https://wikiinafrica.wikibase.cloud/query" target="_blank" rel="noopener">Open Query Service ↗</a>
+    </div>
+    <pre class="sparql-code">PREFIX wd:  &lt;https://wikiinafrica.wikibase.cloud/entity/&gt;
+PREFIX wdt: &lt;https://wikiinafrica.wikibase.cloud/prop/direct/&gt;
+PREFIX wikibase: &lt;http://wikiba.se/ontology#&gt;
+PREFIX bd:  &lt;http://www.bigdata.com/rdf#&gt;
+SELECT ?item ?itemLabel ?creators
+WHERE {
+  ?item wdt:P2 wd:Q4 .
+  OPTIONAL {
+    SELECT ?item (GROUP_CONCAT(DISTINCT ?c; separator=" &amp; ") AS ?creators)
+    WHERE { ?item wdt:P8 ?c . }
+    GROUP BY ?item
+  }
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "en" .
+  }
+}
+ORDER BY ?itemLabel</pre>
+  </div>
+</div>
+
+<div class="kente"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+<footer>
+  <strong>Wiki In Africa · Learning Resources Wikibase</strong><br>
+  All resources are free and openly licensed ·
+  <a href="https://meta.wikimedia.org/wiki/Wiki_In_Africa" target="_blank" rel="noopener">Meta-Wiki</a> ·
+  <a href="https://meta.wikimedia.org/wiki/Wiki_In_Africa/Resources" target="_blank" rel="noopener">Resources page</a> ·
+  <a href="https://wikiinafrica.wikibase.cloud" target="_blank" rel="noopener">Wikibase</a><br>
+  <span style="opacity:.6;font-size:.7rem;">Data harvested from wikiinafrica.wikibase.cloud</span>
+</footer>
+
+<noscript><div style="padding:20px;text-align:center;">This page needs JavaScript to load and filter the resource catalogue.</div></noscript>
 <script src="assets/js/app.js"></script>
 </body>
 </html>
