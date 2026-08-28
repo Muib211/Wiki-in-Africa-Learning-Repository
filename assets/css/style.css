@@ -49,8 +49,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand-block { border-left: 3px solid var(--accent); padding-left: 14px; }
 .site-header h1 { margin: 0; color: var(--ink); font-size: clamp(22px, 2.5vw, 34px); line-height: 1.05; letter-spacing: -0.02em; white-space: nowrap; }
 .site-header h2 { margin: 2px 0 0; font-size: 13px; font-weight: 400; color: var(--muted); }
-#brandTitle { cursor: pointer; transition: color .15s; background: none; border: none; padding: 0; font: inherit; text-align: left; }
+#brandTitle { cursor: pointer; transition: color .15s; background: none; border: none; padding: 0; font: inherit; text-align: left; display: flex; align-items: center; gap: 10px; }
 #brandTitle:hover { color: var(--purple); }
+.brand-logo { display: block; height: 42px; width: auto; flex: 0 0 auto; }
 .data-updated-at { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
 .search-panel { display: flex; gap: 8px; width: min(520px, 100%); }
 .search-panel input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 14px; font-size: 14px; background: white; color: var(--text); }
