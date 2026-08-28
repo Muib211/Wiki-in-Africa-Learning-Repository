@@ -80,20 +80,92 @@ app = Flask(
 _data_lock       = threading.RLock()
 _resources:      List[Dict[str, Any]] = []
 _metadata:       Dict[str, Any]       = {}
+_insights:       Dict[str, Any]       = {}
 _resources_mtime: float               = 0.0
+
+
+def _compute_insights(resources: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Precompute the "insights" data used by the Languages / Keywords (Topics)
+    modals: top items, rare items (used <=2 times), and a diversity/coverage
+    breakdown. Mirrors MEOW's approach -- computed once at load time rather
+    than per-request, since it scans the whole dataset.
+    """
+    # --- Language insights ---
+    lang_counts: Counter = Counter()
+    with_lang = missing_lang = mono = bi = multi = 0
+    for r in resources:
+        langs = r.get("languages", [])
+        n = len(langs)
+        if n == 0:
+            missing_lang += 1
+        else:
+            with_lang += 1
+        if n == 1:   mono  += 1
+        elif n == 2: bi    += 1
+        elif n >= 3: multi += 1
+        for l in langs:
+            lang_counts[l] += 1
+    top_langs = lang_counts.most_common()
+    rare_langs = [(l, c) for l, c in top_langs if c <= 2]
+
+    # --- Topic (keyword) insights ---
+    topic_counts: Counter = Counter()
+    with_topic = missing_topic = t0 = t12 = t35 = t6p = 0
+    for r in resources:
+        topics = r.get("topics", [])
+        n = len(topics)
+        if n == 0:
+            missing_topic += 1
+            t0 += 1
+        else:
+            with_topic += 1
+            if n <= 2:   t12 += 1
+            elif n <= 5: t35 += 1
+            else:        t6p += 1
+        for t in topics:
+            topic_counts[t] += 1
+    top_topics = topic_counts.most_common()
+    rare_topics = [(t, c) for t, c in top_topics if c <= 2]
+
+    return {
+        "languages": {
+            "topLanguages":    [{"language": l, "count": c} for l, c in top_langs[:15]],
+            "rareLanguages":   [{"language": l, "count": c} for l, c in rare_langs],
+            "withLanguage":    with_lang,
+            "missingLanguage": missing_lang,
+            "monolingual":     mono,
+            "bilingual":       bi,
+            "multilingual":    multi,
+            "maxCount":        top_langs[0][1] if top_langs else 0,
+        },
+        "topics": {
+            "topTopics":     [{"topic": t, "count": c} for t, c in top_topics[:20]],
+            "rareTopics":    [{"topic": t, "count": c} for t, c in rare_topics],
+            "withTopics":    with_topic,
+            "missingTopics": missing_topic,
+            "zero":          t0,
+            "oneTwo":        t12,
+            "threeToFive":   t35,
+            "sixPlus":       t6p,
+            "maxCount":      top_topics[0][1] if top_topics else 0,
+        },
+    }
 
 
 def load_data() -> None:
     """Read data files from disk and refresh the in-memory store."""
-    global _resources, _metadata, _resources_mtime
+    global _resources, _metadata, _resources_mtime, _insights
     try:
         new_resources = json.loads(RESOURCES_PATH.read_text(encoding="utf-8"))
         new_metadata  = json.loads(METADATA_PATH.read_text(encoding="utf-8"))
         new_mtime     = RESOURCES_PATH.stat().st_mtime
+        new_insights  = _compute_insights(new_resources)
         with _data_lock:
             _resources       = new_resources
             _metadata        = new_metadata
             _resources_mtime = new_mtime
+            _insights        = new_insights
         print(f"[WIA] Loaded {len(new_resources)} resources.")
     except FileNotFoundError as exc:
         print(f"[WIA] Data file not found ({exc}). Serving empty dataset.")
@@ -133,6 +205,7 @@ def _apply_filters(
     projects: Optional[List[str]] = None,
     languages: Optional[List[str]] = None,
     topics: Optional[List[str]] = None,
+    creators: Optional[List[str]] = None,
     year: str = "",
     reviews: Optional[List[str]] = None,
     missing_flags: Optional[set] = None,
@@ -141,9 +214,9 @@ def _apply_filters(
     """
     Filter resources against the given criteria.
     exclude: one of "campaigns", "skills", "formats", "projects",
-             "languages", "topics", "year", "reviews" -- that dimension is
-             skipped, enabling context-aware facet counts (conjunctive
-             faceted search), matching MEOW's approach.
+             "languages", "topics", "creators", "year", "reviews" -- that
+             dimension is skipped, enabling context-aware facet counts
+             (conjunctive faceted search), matching MEOW's approach.
     """
     campaigns  = campaigns  or []
     skills     = skills     or []
@@ -151,6 +224,7 @@ def _apply_filters(
     projects   = projects   or []
     languages  = languages  or []
     topics     = topics     or []
+    creators   = creators   or []
     reviews    = reviews    or []
     missing_flags = missing_flags or set()
 
@@ -188,6 +262,9 @@ def _apply_filters(
                 continue
         if exclude != "topics" and topics:
             if not _has_any(r.get("topics", []), topics):
+                continue
+        if exclude != "creators" and creators:
+            if not _has_any(r.get("creators", []), creators):
                 continue
         if exclude != "year" and year:
             if r.get("year", "") != year:
@@ -294,9 +371,11 @@ def api_metadata():
     """
     with _data_lock:
         meta = dict(_metadata)
+        insights = dict(_insights)
     meta["campaignMeta"] = CAMPAIGNS
     meta["skillMeta"]    = SKILLS
     meta["skillOrder"]   = SKILL_ORDER
+    meta["insights"]     = insights
     return jsonify(meta)
 
 
@@ -315,6 +394,7 @@ def api_resources():
     project    project label (repeatable)
     lang       language label (repeatable)
     topic      topic label (repeatable)
+    creator    creator name (repeatable)
     year       4-digit year
     review     review status label (repeatable)
     missing    comma-separated flags: title, creator, url, format, language,
@@ -330,6 +410,7 @@ def api_resources():
     projects   = request.args.getlist("project")
     languages  = request.args.getlist("lang")
     topics     = request.args.getlist("topic")
+    creators   = request.args.getlist("creator")
     year       = request.args.get("year", "")
     reviews    = request.args.getlist("review")
     missing_str = request.args.get("missing", "")
@@ -345,7 +426,7 @@ def api_resources():
     fkw: Dict[str, Any] = dict(
         q=q, campaigns=campaigns, skills=skills, formats=formats,
         projects=projects, languages=languages, topics=topics,
-        year=year, reviews=reviews, missing_flags=missing_flags,
+        creators=creators, year=year, reviews=reviews, missing_flags=missing_flags,
     )
 
     with _data_lock:
@@ -363,6 +444,7 @@ def api_resources():
         "projects":  _count(_apply_filters(resources, **fkw, exclude="projects"),  "projects"),
         "languages": _count(_apply_filters(resources, **fkw, exclude="languages"), "languages"),
         "topics":    _count(_apply_filters(resources, **fkw, exclude="topics"),    "topics"),
+        "creators":  _count(_apply_filters(resources, **fkw, exclude="creators"),  "creators"),
         "years":     year_counts,
         "yearNoDate": year_no_date,
         "reviews":   _count(_apply_filters(resources, **fkw, exclude="reviews"),   "reviews"),
