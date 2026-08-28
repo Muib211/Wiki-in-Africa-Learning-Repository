@@ -1,1008 +1,353 @@
-/* global $ */
-"use strict";
+/* ==========================================================================
+   Wiki In Africa — Learning Resources
+   Structure follows MEOW's layout; colors follow the Wiki In Africa palette.
+   ========================================================================== */
+:root {
+  /* Wiki In Africa brand colors */
+  --orange:  #ff9600;
+  --sand:    #b7ac95;
+  --red:     #ff0000;
+  --green:   #5ab43c;
+  --purple:  #784c99;
+  --pink:    #ff3c82;
 
-// Page size must match the server-side PAGE_SIZE constant in app.py.
-var PAGE_SIZE = 24;
-
-// Cached metadata from /api/metadata (campaign/skill lookup tables, dataset
-// totals, precomputed insights). Populated by loadMetadata().
-var _metadata = null;
-
-// Cached facets from the most recent /api/resources response. Used to
-// rebuild filter panels on local search-within-panel changes without a new
-// API call.
-var _lastFacets = {};
-
-// Monotonically increasing request counter, used to discard stale responses
-// when the user changes filters faster than responses arrive.
-var _renderRequestId = 0;
-
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
-var state = {
-  search: "",
-  campaigns: [],
-  skills: [],
-  formats: [],
-  language: "",
-  year: "",
-  reviews: [],
-  topics: [],
-  topicSearch: "",
-  creatorSearch: "",
-  creators: [],
-  projectSearch: "",
-  projects: [],
-  maintenance: {
-    missingCreator: false,
-    missingUrl: false,
-    missingLanguage: false,
-    missingTopic: false,
-    missingYear: false,
-    missingSkill: false
-  },
-  sort: "title",
-  page: 1,
-  view: "grid"
-};
-
-// ---------------------------------------------------------------------------
-// URL state — read, write, sync
-// ---------------------------------------------------------------------------
-function readStateFromUrl() {
-  var params = new URLSearchParams(location.search);
-  state.search    = params.get("q") || "";
-  state.campaigns = params.getAll("campaign");
-  state.skills    = params.getAll("skill");
-  state.formats   = params.getAll("format");
-  state.language  = params.get("lang") || "";
-  state.year      = params.get("year") || "";
-  state.reviews   = params.getAll("review");
-  state.topics    = params.getAll("topic");
-  state.creators  = params.getAll("creator");
-  state.projects  = params.getAll("project");
-
-  var missingStr   = params.get("missing") || "";
-  var missingFlags = missingStr ? missingStr.split(",") : [];
-  state.maintenance.missingCreator  = missingFlags.indexOf("creator")  !== -1;
-  state.maintenance.missingUrl      = missingFlags.indexOf("url")      !== -1;
-  state.maintenance.missingLanguage = missingFlags.indexOf("language") !== -1;
-  state.maintenance.missingTopic    = missingFlags.indexOf("topic")    !== -1;
-  state.maintenance.missingYear     = missingFlags.indexOf("year")     !== -1;
-  state.maintenance.missingSkill    = missingFlags.indexOf("skill")    !== -1;
-
-  state.sort = params.get("sort") || "title";
-  var page = parseInt(params.get("page"), 10);
-  state.page = (page && page > 0) ? page : 1;
-  var view = params.get("view");
-  state.view = (view === "list") ? "list" : "grid";
-
-  state.topicSearch = "";
-  state.creatorSearch = "";
-  state.projectSearch = "";
+  /* Layout tokens, mapped from MEOW's roles onto the WiA palette */
+  --bg:             #FBF7EF;      /* cream */
+  --card:           #ffffff;
+  --text:           #1E1710;      /* ink */
+  --muted:          #8A7F6B;      /* stone */
+  --border:         #E4DBC4;      /* line */
+  --accent:         #ff9600;      /* orange — fills/borders, not text on light bg */
+  --accent-dark:    #b96e00;      /* deepened orange for hover/focus rings */
+  --accent-soft:    #FFE9C4;      /* pale orange tint for hover backgrounds */
+  --subject-bg:     #EBE0F2;      /* purple tint, for topic tags */
+  --subject-text:   #784c99;
+  --subject-border: #d9c3e8;
+  --ink:            #1E1710;
+  --radius:         8px;
 }
 
-function buildUrlParams() {
-  var params = new URLSearchParams();
-  if (state.search)   params.set("q", state.search);
-  if (state.language) params.set("lang", state.language);
-  if (state.year)     params.set("year", state.year);
-  $.each(state.campaigns, function (i, c) { params.append("campaign", c); });
-  $.each(state.skills,    function (i, s) { params.append("skill", s); });
-  $.each(state.formats,   function (i, f) { params.append("format", f); });
-  $.each(state.reviews,   function (i, r) { params.append("review", r); });
-  $.each(state.topics,    function (i, t) { params.append("topic", t); });
-  $.each(state.creators,  function (i, c) { params.append("creator", c); });
-  $.each(state.projects,  function (i, p) { params.append("project", p); });
-
-  var missingFlags = [];
-  if (state.maintenance.missingCreator)  missingFlags.push("creator");
-  if (state.maintenance.missingUrl)      missingFlags.push("url");
-  if (state.maintenance.missingLanguage) missingFlags.push("language");
-  if (state.maintenance.missingTopic)    missingFlags.push("topic");
-  if (state.maintenance.missingYear)     missingFlags.push("year");
-  if (state.maintenance.missingSkill)    missingFlags.push("skill");
-  if (missingFlags.length) params.set("missing", missingFlags.join(","));
-
-  if (state.sort && state.sort !== "title") params.set("sort", state.sort);
-  if (state.page && state.page > 1)         params.set("page", state.page);
-  if (state.view === "list")                params.set("view", "list");
-  return params;
+* { box-sizing: border-box; }
+body {
+  margin: 0; line-height: 1.5;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg); color: var(--text);
+}
+.container { max-width: 1480px; margin: 0 auto; padding: 0 20px; }
+.noscript-message {
+  max-width: 720px; margin: 20px auto; border: 1px solid var(--subject-border);
+  border-radius: var(--radius); background: var(--accent-soft); padding: 14px 18px;
+  color: var(--text); font-weight: 600;
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent-dark); outline-offset: 2px;
 }
 
-function replaceUrlState() {
-  var params = buildUrlParams();
-  var search = params.toString();
-  var newUrl = search ? location.pathname + "?" + search : location.pathname;
-  history.replaceState({ wia: true }, "", newUrl);
+/* ── Header ── */
+.site-header { background: white; border-top: 3px solid var(--accent); border-bottom: 1px solid var(--border); padding: 14px 0; }
+.header-inner { display: flex; align-items: center; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+.brand-block { border-left: 3px solid var(--accent); padding-left: 14px; }
+.site-header h1 { margin: 0; color: var(--ink); font-size: clamp(22px, 2.5vw, 34px); line-height: 1.05; letter-spacing: -0.02em; white-space: nowrap; }
+.site-header h2 { margin: 2px 0 0; font-size: 13px; font-weight: 400; color: var(--muted); }
+#brandTitle { cursor: pointer; transition: color .15s; background: none; border: none; padding: 0; font: inherit; text-align: left; }
+#brandTitle:hover { color: var(--purple); }
+.data-updated-at { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.search-panel { display: flex; gap: 8px; width: min(520px, 100%); }
+.search-panel input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 14px; font-size: 14px; background: white; color: var(--text); }
+.search-panel input:focus { outline: 2px solid var(--accent-dark); outline-offset: 0; border-color: var(--accent-dark); }
+.search-panel button { border: 1px solid transparent; border-radius: var(--radius); padding: 9px 16px; background: var(--ink); color: white; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .12s; }
+.search-panel button:hover { background: var(--accent); color: var(--text); }
+.site-nav { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.nav-link { display: inline-flex; align-items: center; border: none; background: none; color: var(--muted); font-size: 13px; font-family: inherit; padding: 6px 10px; border-radius: var(--radius); cursor: pointer; text-decoration: none; white-space: nowrap; transition: color .12s, background .12s; }
+.nav-link:hover, .nav-link:focus { color: var(--text); background: var(--accent-soft); outline: none; }
+
+/* ── Three-column layout ── */
+.app-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 250px; gap: 16px; padding-top: 16px; padding-bottom: 40px; }
+.filters, .subject-panel { align-self: start; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: 0 2px 6px rgba(30,23,16,.05); }
+.filters-header, .subject-panel-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.filters h2, .subject-panel h2 { margin: 0; font-size: 16px; }
+.subject-count { margin: 0; color: var(--muted); font-size: 12px; font-weight: 600; }
+.reset-button { border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 10px; background: white; color: var(--muted); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: color .12s, border-color .12s; }
+.reset-button:hover { color: var(--text); border-color: var(--accent-dark); }
+
+/* ── Filter groups ── */
+.filter-group { padding-top: 12px; margin-top: 12px; }
+.filter-group label, .filter-group h3 { display: block; margin: 0 0 7px; font-size: 13px; font-weight: 700; }
+.filter-group select { width: 100%; border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 10px; background: white; color: var(--text); font-size: 13px; font-family: inherit; }
+.filter-group select:focus { outline: 2px solid var(--accent-dark); border-color: var(--accent-dark); }
+.collapsible-filter-group.improve-data-group { background: var(--accent-soft); border: 1px solid var(--subject-border); border-radius: var(--radius); padding: 2px 6px 8px; }
+.collapsible-filter-group { padding-top: 8px; margin-top: 12px; }
+.collapsible-filter-group summary { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; min-height: 30px; border-radius: 5px; padding: 4px 6px; cursor: pointer; list-style: none; color: var(--text); font-size: 13px; font-weight: 700; }
+.collapsible-filter-group summary::-webkit-details-marker { display: none; }
+.collapsible-filter-group summary::before { content: "▸"; color: var(--muted); font-size: 11px; }
+.collapsible-filter-group[open] summary::before { content: "▾"; }
+.collapsible-filter-group summary:hover { background: var(--accent-soft); }
+.collapsible-filter-group summary:focus-visible { outline: 2px solid var(--accent-dark); }
+.collapsible-filter-title { overflow: hidden; text-overflow: ellipsis; }
+.collapsible-filter-icon { display: inline-block; width: 1.3em; text-align: center; margin-right: 2px; }
+.collapsible-filter-count { justify-self: end; white-space: nowrap; font-size: 11px; color: var(--muted); font-weight: 400; }
+.collapsible-filter-count.has-active { color: var(--subject-text); font-weight: 700; }
+.collapsible-filter-content { padding-top: 6px; }
+.checkbox-row { display: flex; align-items: center; gap: 7px; margin: 6px 0; color: var(--muted); font-size: 13px; cursor: pointer; }
+.checkbox-row input { flex: 0 0 auto; }
+.checkbox-label { flex: 1; }
+.filter-empty { margin: 4px 0; color: var(--muted); font-size: 12px; }
+
+/* Shared filter-item buttons */
+.publisher-search, .author-search, .event-search { width: 100%; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; font-size: 13px; font-family: inherit; background: white; color: var(--text); }
+.publisher-search:focus, .author-search:focus, .event-search:focus { outline: 2px solid var(--accent-dark); border-color: var(--accent-dark); }
+.publisher-filter-list, .author-filter-list, .event-filter-list, .resource-type-filter-list { max-height: 180px; overflow-y: auto; padding-right: 2px; }
+.publisher-filter-button, .author-filter-button, .event-filter-button, .resource-type-filter-button {
+  width: 100%; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text);
+  padding: 5px 7px; font-size: 13px; font-family: inherit; cursor: pointer; text-align: left;
+  display: grid; grid-template-columns: 1fr auto; gap: 7px; align-items: center; transition: background .1s, border-color .1s;
+}
+.publisher-filter-button:hover, .author-filter-button:hover, .event-filter-button:hover, .resource-type-filter-button:hover { background: var(--accent-soft); border-color: var(--accent-dark); }
+.publisher-filter-button.is-active, .author-filter-button.is-active, .event-filter-button.is-active, .resource-type-filter-button.is-active { background: var(--accent); border-color: var(--accent); color: var(--text); }
+.publisher-filter-name, .author-filter-name, .event-filter-name, .resource-type-filter-name { overflow: hidden; text-overflow: ellipsis; }
+.publisher-filter-count, .author-filter-count, .event-filter-count, .resource-type-filter-count { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--muted); padding: 1px 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.publisher-filter-button.is-active .publisher-filter-count, .author-filter-button.is-active .author-filter-count, .event-filter-button.is-active .event-filter-count, .resource-type-filter-button.is-active .resource-type-filter-count { background: rgba(30,23,16,.12); border-color: rgba(30,23,16,.28); color: var(--text); }
+
+/* ── Topic (keyword) panel ── */
+.subject-search { width: 100%; margin: 10px 0 8px; border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 10px; font-size: 13px; font-family: inherit; background: white; color: var(--text); }
+.subject-search:focus { outline: 2px solid var(--accent-dark); border-color: var(--accent-dark); }
+.subject-filter-list { max-height: calc(100vh - 180px); overflow-y: auto; padding-right: 2px; }
+.subject-filter-button {
+  width: 100%; border: 1px solid transparent; border-radius: 5px; background: transparent; color: var(--text);
+  padding: 5px 7px; font-size: 13px; font-family: inherit; cursor: pointer; text-align: left;
+  display: grid; grid-template-columns: 1fr auto; gap: 7px; align-items: center; transition: background .1s, border-color .1s;
+}
+.subject-filter-button:hover { background: var(--subject-bg); border-color: var(--subject-border); }
+.subject-filter-button.is-active { background: var(--subject-text); border-color: var(--subject-text); color: white; }
+.subject-filter-name { overflow: hidden; text-overflow: ellipsis; }
+.subject-filter-count { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; color: var(--muted); padding: 1px 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.subject-filter-button.is-active .subject-filter-count { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.3); color: white; }
+
+/* ── Year histogram ── */
+.year-filter-list { display: grid; gap: 2px; padding-top: 2px; }
+.year-bar-button { width: 100%; display: grid; grid-template-columns: 46px 1fr 28px; gap: 6px; align-items: center; border: 1px solid transparent; border-radius: 5px; background: transparent; padding: 4px 6px; font: inherit; font-size: 12px; cursor: pointer; text-align: left; transition: background .1s, border-color .1s; }
+.year-bar-button:hover { background: var(--accent-soft); border-color: var(--accent-dark); }
+.year-bar-button.is-active { background: var(--accent); border-color: var(--accent); color: var(--text); }
+.year-bar-button:focus-visible { outline: 2px solid var(--accent-dark); }
+.year-bar-label { font-weight: 700; white-space: nowrap; }
+.year-bar-track { height: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+.year-bar-button.is-active .year-bar-track { border-color: rgba(30,23,16,.25); background: rgba(30,23,16,.12); }
+.year-bar-fill { display: block; height: 100%; background: var(--accent); transition: width .2s ease; }
+.year-bar-button.is-active .year-bar-fill { background: var(--text); }
+.year-bar-count { color: var(--muted); font-size: 11px; font-weight: 600; text-align: right; white-space: nowrap; }
+.year-bar-button.is-active .year-bar-count { color: rgba(30,23,16,.75); }
+.year-no-date { margin: 5px 6px 0; color: var(--muted); font-size: 11px; }
+
+/* ── Results area ── */
+.results-area { min-width: 0; }
+.results-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
+.results-toolbar p { margin: 0; color: var(--muted); font-size: 13px; font-weight: 600; }
+.results-toolbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.results-toolbar select { border: 1px solid var(--border); border-radius: var(--radius); padding: 7px 11px; background: white; color: var(--text); font-size: 13px; font-family: inherit; }
+.results-toolbar select:focus { outline: 2px solid var(--accent-dark); border-color: var(--accent-dark); }
+
+.summary-stats { display: grid; grid-template-columns: repeat(6, minmax(90px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.summary-stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
+.summary-stat-number { display: block; color: var(--ink); font-size: 22px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+.summary-stat-label { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.summary-stat-button { appearance: none; width: 100%; text-align: left; cursor: pointer; font: inherit; color: inherit; border-left: 3px solid var(--accent); padding-left: 9px; transition: background .12s; background: var(--card); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); border-radius: var(--radius); }
+.summary-stat-button:hover, .summary-stat-button:focus { background: var(--accent-soft); outline: none; }
+.summary-stat-hint { display: block; margin-top: 4px; color: var(--text); font-size: 11px; font-weight: 700; }
+
+.active-filter-strip { background: var(--accent-soft); border: 1px solid var(--subject-border); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
+.active-filter-strip strong { color: var(--subject-text); }
+.active-filter-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.active-filter-chip { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 999px; background: white; color: var(--text); padding: 3px 10px; font-size: 11px; font-weight: 500; font-family: inherit; cursor: pointer; transition: border-color .1s, background .1s; }
+.active-filter-chip:hover { border-color: var(--ink); background: var(--bg); }
+.active-filter-chip span { opacity: .5; font-size: 13px; }
+.clear-type-filter, .clear-year-filter, .clear-publisher-filter, .clear-author-filter, .clear-maintenance-filter, .clear-generic-filter {
+  border: 1px solid var(--subject-border); border-radius: var(--radius); background: white; color: var(--subject-text); padding: 3px 9px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .1s;
+}
+.clear-type-filter:hover, .clear-year-filter:hover, .clear-publisher-filter:hover, .clear-author-filter:hover, .clear-maintenance-filter:hover, .clear-generic-filter:hover { background: var(--subject-bg); }
+
+/* ── Toolbar buttons ── */
+.view-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: white; }
+.view-toggle-button { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: none; background: transparent; color: var(--muted); cursor: pointer; transition: background .1s, color .1s; }
+.view-toggle-button:hover { background: var(--accent-soft); color: var(--text); }
+.view-toggle-button.is-active { background: var(--ink); color: white; }
+.view-toggle-button:focus-visible { outline: 2px solid var(--accent-dark); outline-offset: -2px; }
+.copy-link-button, .export-csv-button { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 12px; background: white; color: var(--muted); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; transition: color .12s, border-color .12s, background .12s; }
+.copy-link-button::before { content: "🔗"; font-size: 11px; }
+.export-csv-button::before { content: "⬇"; font-size: 11px; }
+.copy-link-button:hover, .copy-link-button:focus, .export-csv-button:hover:not(:disabled), .export-csv-button:focus:not(:disabled) { color: var(--ink); border-color: var(--accent-dark); background: var(--accent-soft); outline: none; }
+.copy-link-button--copied { border-color: var(--green); background: #e6f7e0; color: #2E6B1D; }
+.copy-link-button--copied::before { content: "✓"; }
+.export-csv-button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Resource cards (grid view) ── */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 12px; }
+.resource-card { display: flex; flex-direction: column; min-height: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; box-shadow: 0 1px 4px rgba(30,23,16,.05); transition: border-color .14s, box-shadow .14s; }
+.resource-card:hover { border-color: rgba(185,110,0,.5); box-shadow: 0 3px 10px rgba(30,23,16,.09); }
+.card-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
+.card-badges { display: flex; flex-wrap: wrap; gap: 5px; flex: 1 1 auto; min-width: 0; }
+.card-link-icons { display: flex; gap: 4px; flex: 0 0 auto; }
+.badge { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
+.badge--campaign { background: var(--ink); border-color: var(--ink); color: white; }
+.badge--skill { background: #DEF0D9; border-color: #b8dfaa; color: #2E6B1D; }
+.badge--lang { background: var(--subject-bg); border-color: var(--subject-border); color: var(--subject-text); }
+.badge--id { margin-left: auto; background: transparent; border-color: var(--border); color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; opacity: .7; }
+.badge--clickable { cursor: pointer; font: inherit; transition: background .1s, color .1s, border-color .1s; }
+.badge--clickable:hover { background: var(--accent-soft); color: var(--text); border-color: var(--accent-dark); }
+.badge--clickable.is-active { background: var(--accent) !important; color: var(--text) !important; border-color: var(--accent) !important; }
+.badge--clickable:focus-visible { outline: 2px solid var(--accent-dark); }
+.resource-card h2 { margin: 0 0 7px; font-size: 16px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+.resource-title-link { color: var(--text); text-decoration: none; text-underline-offset: 3px; }
+.resource-title-link:hover, .resource-title-link:focus { color: var(--text); text-decoration: underline; outline: none; }
+.description { margin: 0 0 2px; color: var(--muted); font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.description--empty { font-style: italic; }
+.resource-date { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.resource-creator, .resource-project, .resource-review { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.resource-creator-label, .resource-project-label, .resource-review-label { display: inline-flex; width: 1.3em; justify-content: center; }
+.creator-link, .project-link { border: 0; background: transparent; color: var(--text); padding: 0; margin: 0; font: inherit; font-size: 12px; cursor: pointer; text-decoration: none; }
+.creator-link:hover, .project-link:hover, .creator-link:focus, .project-link:focus { text-decoration: underline; outline: none; }
+.creator-link.is-active, .project-link.is-active { background: var(--subject-bg); color: var(--subject-text); text-decoration: underline; }
+.subject-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 9px; }
+.subject-tag { background: var(--subject-bg); color: var(--subject-text); border: 1px solid var(--subject-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .1s, color .1s; }
+.subject-tag:hover, .subject-tag:focus { background: #d9c3e8; outline: none; }
+.subject-tag.is-active { background: var(--subject-text); border-color: var(--subject-text); color: white; }
+.link-icon-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent); background: var(--accent); color: var(--text) !important; text-decoration: none; transition: background .12s, border-color .12s; }
+.link-icon-button svg { display: block; }
+.link-icon-button:hover, .link-icon-button:focus-visible { background: var(--accent-dark); border-color: var(--accent-dark); outline: none; }
+.empty-state, .error-state { background: white; border: 1px dashed var(--border); border-radius: var(--radius); padding: 28px; text-align: center; color: var(--muted); grid-column: 1/-1; }
+.error-state { border-color: #cc3333; color: #992222; }
+
+/* ── List view ── */
+.card-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); box-shadow: 0 1px 4px rgba(30,23,16,.05); }
+.resource-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; gap: 0 12px; align-items: start; padding: 9px 13px; border-bottom: 1px solid var(--border); transition: background .1s; }
+.resource-row:last-child { border-bottom: none; }
+.resource-row:hover { background: var(--accent-soft); }
+.row-badges { display: flex; flex-direction: column; gap: 3px; padding-top: 2px; }
+.resource-row .badge { justify-content: center; white-space: normal; text-align: center; }
+.row-body { min-width: 0; }
+.row-title { margin: 0 0 3px; font-size: 14px; font-weight: 700; line-height: 1.3; }
+.row-description { -webkit-line-clamp: 2; margin-bottom: 5px; }
+.row-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 5px; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+.row-meta-date { font-weight: 600; white-space: nowrap; }
+.row-meta-sep { color: var(--border); user-select: none; }
+.row-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 1px; }
+.row-links { display: flex; flex-direction: row; gap: 4px; }
+.row-links .link-icon-button { width: 26px; height: 26px; }
+.row-links .link-icon-button svg { width: 13px; height: 13px; }
+.row-id-badge { margin-left: 0 !important; }
+.row-type-label, .row-lang-label { display: block; width: 100%; border: none; background: none; padding: 0; margin: 0; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--text); cursor: pointer; text-align: left; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
+.row-lang-label { font-weight: 600; color: var(--subject-text); }
+.row-type-label:hover, .row-type-label.is-active, .row-lang-label:hover, .row-lang-label.is-active { text-decoration: underline; }
+
+/* ── Pagination ── */
+.pagination { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 24px; padding-bottom: 4px; }
+.pagination-button { min-width: 38px; height: 36px; padding: 0 11px; border: 1px solid var(--border); border-radius: var(--radius); background: white; color: var(--text); font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; transition: background .1s, border-color .1s, color .1s; }
+.pagination-button:hover:not(:disabled):not(.is-current) { border-color: var(--accent-dark); color: var(--text); background: var(--accent-soft); }
+.pagination-button:focus-visible { outline: 2px solid var(--accent-dark); }
+.pagination-button.is-current { background: var(--ink); border-color: var(--ink); color: white; cursor: default; }
+.pagination-button:disabled { opacity: 0.38; cursor: not-allowed; }
+.pagination-prev, .pagination-next { padding: 0 14px; }
+.pagination-ellipsis { min-width: 26px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; user-select: none; pointer-events: none; }
+
+/* ── Jump to top ── */
+.jump-to-top { position: fixed; bottom: 24px; right: 24px; z-index: 500; width: 40px; height: 40px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--ink); font-size: 18px; font-family: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(30,23,16,.1); opacity: 0; pointer-events: none; transition: opacity .2s, background .12s, color .12s; }
+.jump-to-top.is-visible { opacity: 1; pointer-events: auto; }
+.jump-to-top:hover { background: var(--ink); color: white; }
+.jump-to-top:focus-visible { outline: 2px solid var(--accent-dark); }
+
+/* ── Modals ── */
+body.modal-open { overflow: hidden; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 1000; background: rgba(30,23,16,.48); padding: 24px; overflow-y: auto; }
+.modal-backdrop[hidden] { display: none; }
+.modal-dialog { width: min(960px, 100%); margin: 0 auto; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.18); overflow: hidden; }
+.modal-dialog--narrow { width: min(560px, 100%); }
+.modal-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; background: white; border-bottom: 1px solid var(--border); padding: 16px 20px; }
+.modal-kicker { margin: 0 0 3px; color: var(--purple); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.modal-header h2 { margin: 0; color: var(--ink); font-size: clamp(20px, 2.5vw, 30px); line-height: 1.1; letter-spacing: -0.02em; }
+.modal-close { flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius); background: white; color: var(--ink); font-size: 22px; line-height: 1; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; transition: background .12s, color .12s; }
+.modal-close:hover, .modal-close:focus { background: var(--ink); color: white; outline: none; }
+.modal-body { padding: 20px; font-size: 14px; line-height: 1.6; color: var(--text); }
+.modal-body h3 { margin: 18px 0 6px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.modal-body h3:first-child { margin-top: 0; }
+.modal-body p { margin: 0 0 10px; }
+.modal-body ul { margin: 0 0 10px; padding-left: 20px; }
+.modal-body li { margin: 4px 0; }
+.modal-body a { color: var(--purple); text-decoration: underline; }
+
+/* ── Insights modals ── */
+.language-modal-content { padding: 16px; }
+.language-overview-grid { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.language-overview-card, .language-insight-section, .language-action-strip { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.language-overview-card { padding: 12px; }
+.language-overview-number { display: block; color: var(--ink); font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.language-overview-label { display: block; margin-top: 4px; color: var(--text); font-size: 12px; font-weight: 700; }
+.language-overview-note, .insight-note, .diversity-row p, .section-heading-row p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.language-action-strip { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; padding: 10px 14px; background: var(--accent-soft); color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+.language-missing-button { border: 1px solid var(--subject-border); border-radius: var(--radius); background: white; color: var(--subject-text); padding: 5px 11px; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .1s; }
+.language-missing-button:hover { background: var(--subject-bg); }
+.language-insight-grid { display: grid; grid-template-columns: minmax(220px, .85fr) minmax(260px, 1.15fr); gap: 12px; margin-top: 12px; }
+.language-insight-section { padding: 14px; }
+.language-insight-section h3 { margin: 0 0 10px; color: var(--ink); font-size: 16px; line-height: 1.2; }
+.section-heading-row { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
+.language-bar-list { display: grid; gap: 5px; }
+.language-bar-button { width: 100%; display: grid; grid-template-columns: minmax(110px, .65fr) minmax(140px, 1fr) auto; gap: 9px; align-items: center; border: 1px solid transparent; border-radius: 5px; background: transparent; padding: 5px 7px; color: var(--text); font: inherit; cursor: pointer; text-align: left; transition: background .1s, border-color .1s; }
+.language-bar-button:hover, .language-bar-button:focus { background: var(--accent-soft); border-color: var(--accent-dark); outline: none; }
+.language-bar-label { overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 600; }
+.language-bar-track { height: 9px; overflow: hidden; border-radius: 2px; background: var(--bg); border: 1px solid var(--border); }
+.language-bar-fill { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.language-bar-count { min-width: 30px; color: var(--muted); font-size: 12px; font-weight: 700; text-align: right; }
+.diversity-list { display: grid; gap: 11px; }
+.diversity-row-top { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 5px; color: var(--text); font-size: 12px; font-weight: 700; }
+.diversity-track { height: 9px; overflow: hidden; border-radius: 2px; background: var(--bg); border: 1px solid var(--border); }
+.diversity-track span { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.rare-language-list { display: flex; flex-wrap: wrap; gap: 5px; max-height: 220px; overflow-y: auto; }
+.rare-language-pill { border: 1px solid var(--subject-border); border-radius: 4px; background: var(--subject-bg); color: var(--subject-text); padding: 3px 7px; font-size: 12px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .1s, color .1s; }
+.rare-language-pill:hover, .rare-language-pill:focus { background: var(--subject-text); color: white; outline: none; }
+.rare-language-pill span { opacity: .75; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 
-function syncUiToState() {
-  $("#searchInput").val(state.search);
-  $("#languageFilter").val(state.language);
-  $("#sortSelect").val(state.sort);
-  $("#missingCreatorFilter").prop("checked", state.maintenance.missingCreator);
-  $("#missingUrlFilter").prop("checked", state.maintenance.missingUrl);
-  $("#missingLanguageFilter").prop("checked", state.maintenance.missingLanguage);
-  $("#missingTopicFilter").prop("checked", state.maintenance.missingTopic);
-  $("#missingYearFilter").prop("checked", state.maintenance.missingYear);
-  $("#missingSkillFilter").prop("checked", state.maintenance.missingSkill);
-  updateImproveDataCount();
-  $("#viewGrid").attr("aria-pressed", state.view === "grid").toggleClass("is-active", state.view === "grid");
-  $("#viewList").attr("aria-pressed", state.view === "list").toggleClass("is-active", state.view === "list");
-  $("#topicSearchInput").val("");
-  $("#creatorSearchInput").val("");
-  $("#projectSearchInput").val("");
+/* ── Responsive ── */
+@media (min-width: 1181px) {
+  .app-layout { align-items: start; }
+  .filters, .subject-panel { position: sticky; top: 14px; max-height: calc(100vh - 28px); overflow-y: auto; scrollbar-gutter: stable; }
+  .publisher-filter-list, .author-filter-list, .event-filter-list, .resource-type-filter-list, .subject-filter-list { max-height: none; overflow-y: visible; }
 }
-
-// ---------------------------------------------------------------------------
-// Copy-link / CSV export
-// ---------------------------------------------------------------------------
-function initCopyLinkButton() {
-  $("#copyLinkButton").on("click", function () {
-    var url = location.href;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(showCopied).catch(function () { legacyCopy(url); });
-    } else {
-      legacyCopy(url);
-    }
-  });
+@media (max-width: 1180px) {
+  .app-layout { grid-template-columns: 210px minmax(0, 1fr); }
+  .subject-panel { grid-column: 1 / -1; }
+  .subject-filter-list { max-height: 320px; }
 }
-function legacyCopy(text) {
-  var ta = document.createElement("textarea");
-  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-  document.body.appendChild(ta); ta.select();
-  try { document.execCommand("copy"); showCopied(); } finally { document.body.removeChild(ta); }
+@media (max-width: 900px) {
+  .header-inner { align-items: stretch; flex-direction: column; gap: 10px; }
+  .site-header h1 { white-space: normal; }
+  .search-panel { width: 100%; }
+  .site-nav { flex-wrap: wrap; }
+  .app-layout { grid-template-columns: 1fr; }
+  .summary-stats { grid-template-columns: repeat(3, minmax(80px, 1fr)); }
+  .modal-backdrop { padding: 12px; }
+  .language-overview-grid, .language-insight-grid { grid-template-columns: 1fr 1fr; }
+  .language-bar-button { grid-template-columns: 1fr auto; }
+  .language-bar-track { grid-column: 1 / -1; }
+  .resource-row { grid-template-columns: 1fr auto; grid-template-rows: auto auto; }
+  .row-badges { grid-column: 1; grid-row: 1; flex-direction: row; }
+  .row-body { grid-column: 1 / -1; grid-row: 2; }
+  .row-actions { grid-column: 2; grid-row: 1; align-items: flex-end; }
 }
-function showCopied() {
-  var $btn = $("#copyLinkButton");
-  $btn.text("\u2713 Copied").addClass("copy-link-button--copied");
-  setTimeout(function () { $btn.text("Copy link").removeClass("copy-link-button--copied"); }, 2200);
+@media (max-width: 620px) {
+  .search-panel { flex-direction: column; }
+  .results-toolbar { align-items: flex-start; flex-direction: column; }
+  .results-toolbar-actions { flex-direction: column; align-items: flex-start; gap: 5px; }
+  .summary-stats { grid-template-columns: 1fr 1fr; }
+  .card-grid { grid-template-columns: 1fr; }
+  .pagination-prev, .pagination-next { flex: 1; max-width: 140px; }
+  .modal-header, .language-action-strip, .section-heading-row { align-items: flex-start; flex-direction: column; }
+  .language-overview-grid, .language-insight-grid { grid-template-columns: 1fr; }
+  .resource-row { grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+  .row-badges { grid-row: 1; flex-direction: row; }
+  .row-body { grid-row: 2; }
+  .row-actions { grid-column: 1; grid-row: 3; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
+  .row-links { flex-direction: row; width: auto; }
+  .jump-to-top { bottom: 14px; right: 14px; }
 }
-
-function initExportCsvButton() {
-  $("#exportCsvButton").on("click", exportCsv);
-}
-function csvQuote(value) {
-  var str = (value === null || value === undefined) ? "" : String(value);
-  return '"' + str.replace(/"/g, '""') + '"';
-}
-function exportCsv() {
-  var $btn = $("#exportCsvButton");
-  $btn.prop("disabled", true).text("Exporting\u2026");
-  var params = buildUrlParams();
-  params.set("all", "1");
-  params.delete("page");
-  params.delete("view");
-  $.getJSON("/api/resources?" + params.toString())
-    .done(function (data) {
-      var columns = ["id", "title", "campaign", "skills", "formats", "projects", "languages", "topics", "creators", "year", "reviews", "primary_url", "item_url"];
-      var rows = [columns.map(csvQuote).join(",")];
-      $.each(data.results, function (i, r) {
-        var row = [
-          r.id, r.title, r.campaign,
-          (r.skills || []).join(" | "), (r.formats || []).join(" | "), (r.projects || []).join(" | "),
-          (r.languages || []).join(" | "), (r.topics || []).join(" | "), (r.creators || []).join(" | "),
-          r.year, (r.reviews || []).join(" | "), r.primaryUrl, r.itemUrl
-        ].map(csvQuote).join(",");
-        rows.push(row);
-      });
-      var csv = rows.join("\r\n");
-      var blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      var today = new Date();
-      a.download = "wia-resources-" + today.getFullYear() + "-" +
-        String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0") + ".csv";
-      a.style.display = "none";
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
-      $btn.prop("disabled", false).text("Export CSV");
-    })
-    .fail(function () {
-      alert("Export failed. Please try again.");
-      $btn.prop("disabled", false).text("Export CSV");
-    });
-}
-
-// ---------------------------------------------------------------------------
-// View toggle / nav modals / title reset / jump to top
-// ---------------------------------------------------------------------------
-function initViewToggle() {
-  $("#viewGrid").on("click", function () { if (state.view !== "grid") { state.view = "grid"; syncUiToState(); render(); } });
-  $("#viewList").on("click", function () { if (state.view !== "list") { state.view = "list"; syncUiToState(); render(); } });
-}
-function initNavMenu() {
-  function openModal(id, focusTarget) { $(id).prop("hidden", false); $("body").addClass("modal-open"); $(focusTarget).focus(); }
-  function closeModal(id, returnFocus) { $(id).prop("hidden", true); $("body").removeClass("modal-open"); $(returnFocus).focus(); }
-  $("#navAbout").on("click", function () { openModal("#aboutModal", "#aboutModal .modal-close"); });
-  $("#closeAboutModal").on("click", function () { closeModal("#aboutModal", "#navAbout"); });
-  $("#aboutModal").on("click", function (e) { if (e.target === this) closeModal("#aboutModal", "#navAbout"); });
-  $("#navContribute").on("click", function () { openModal("#contributeModal", "#contributeModal .modal-close"); });
-  $("#closeContributeModal").on("click", function () { closeModal("#contributeModal", "#navContribute"); });
-  $("#contributeModal").on("click", function (e) { if (e.target === this) closeModal("#contributeModal", "#navContribute"); });
-  $(document).on("keydown.navModals", function (e) {
-    if (e.key !== "Escape") return;
-    if (!$("#aboutModal").prop("hidden")) closeModal("#aboutModal", "#navAbout");
-    if (!$("#contributeModal").prop("hidden")) closeModal("#contributeModal", "#navContribute");
-  });
-}
-function initTitleReset() {
-  $("#brandTitle").on("click", function () { clearAllFilters(); })
-    .attr("title", "Reset to default view");
-}
-function initJumpToTop() {
-  var $btn = $("#jumpToTop");
-  $(window).on("scroll.jumpToTop", function () { $btn.toggleClass("is-visible", $(window).scrollTop() > 300); });
-  $btn.on("click", function () { $("html, body").animate({ scrollTop: 0 }, 220); });
-}
-
-// ---------------------------------------------------------------------------
-// Bootstrap
-// ---------------------------------------------------------------------------
-$(function () {
-  readStateFromUrl();
-
-  var _searchDebounce = null;
-  $("#searchInput").on("input", function () {
-    state.search = $(this).val().trim().toLowerCase();
-    state.page = 1;
-    clearTimeout(_searchDebounce);
-    _searchDebounce = setTimeout(render, 300);
-  });
-  $("#creatorSearchInput").on("input", function () { state.creatorSearch = $(this).val().trim().toLowerCase(); buildCreatorFilters(_lastFacets); });
-  $("#projectSearchInput").on("input", function () { state.projectSearch = $(this).val().trim().toLowerCase(); buildProjectFilters(_lastFacets); });
-  $("#topicSearchInput").on("input", function () { state.topicSearch = $(this).val().trim().toLowerCase(); buildTopicPanel(_lastFacets); });
-  $("#clearSearch").on("click", function () { clearAllFilters(); });
-
-  $("#languageFilter").on("change", function () { state.language = $(this).val(); state.page = 1; render(); });
-  $("#sortSelect").on("change", function () { state.sort = $(this).val(); state.page = 1; render(); });
-
-  $.each(["missingCreator", "missingUrl", "missingLanguage", "missingTopic", "missingYear", "missingSkill"], function (i, key) {
-    $("#" + key + "Filter").on("change", function () {
-      state.maintenance[key] = $(this).is(":checked");
-      state.page = 1; updateImproveDataCount(); render();
-    });
-  });
-
-  $("#resetFilters").on("click", function () { clearAllFilters(); });
-  $("#closeLanguageInsights").on("click", function () { closeLanguageInsights(); });
-  $("#closeTopicInsights").on("click", function () { closeTopicInsights(); });
-  $("#languageInsightsModal").on("click", function (e) { if (e.target === this) closeLanguageInsights(); });
-  $("#topicInsightsModal").on("click", function (e) { if (e.target === this) closeTopicInsights(); });
-  $(document).on("keydown", function (e) { if (e.key === "Escape") { closeLanguageInsights(); closeTopicInsights(); } });
-
-  $(window).on("popstate", function () { readStateFromUrl(); syncUiToState(); render(); });
-
-  initCopyLinkButton();
-  initExportCsvButton();
-  initViewToggle();
-  initNavMenu();
-  initTitleReset();
-  initJumpToTop();
-
-  loadMetadata();
-  render();
-});
-
-// ---------------------------------------------------------------------------
-// Filter helpers
-// ---------------------------------------------------------------------------
-function clearAllFilters() {
-  state.search = ""; state.campaigns = []; state.skills = []; state.formats = [];
-  state.language = ""; state.year = ""; state.reviews = [];
-  state.topics = []; state.topicSearch = "";
-  state.creators = []; state.creatorSearch = "";
-  state.projects = []; state.projectSearch = "";
-  state.maintenance.missingCreator = false;
-  state.maintenance.missingUrl = false;
-  state.maintenance.missingLanguage = false;
-  state.maintenance.missingTopic = false;
-  state.maintenance.missingYear = false;
-  state.maintenance.missingSkill = false;
-  state.page = 1;
-  syncUiToState();
-  render();
-}
-
-// ---------------------------------------------------------------------------
-// Metadata (labels/icons/dataset stats/insights)
-// ---------------------------------------------------------------------------
-function campaignMeta(id) { return (_metadata && _metadata.campaignMeta && _metadata.campaignMeta[id]) || {}; }
-function campaignLabel(id) { return campaignMeta(id).label || id; }
-function skillLabel(id) { return (_metadata && _metadata.skillMeta && _metadata.skillMeta[id]) || id; }
-
-function loadMetadata() {
-  $.getJSON("/api/metadata")
-    .done(function (data) {
-      _metadata = data;
-      var note = "Data last updated: unknown";
-      if (data.generatedAt) {
-        var date = new Date(data.generatedAt);
-        if (!isNaN(date.getTime())) {
-          note = "Data last updated: " + date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-        }
-      }
-      $("#dataUpdatedAt").text(note);
-      renderSummaryStats();
-    })
-    .fail(function () { $("#dataUpdatedAt").text("Data last updated: unknown"); });
-}
-
-// ---------------------------------------------------------------------------
-// Normalisation
-// ---------------------------------------------------------------------------
-function normalizeResources(data) {
-  var normalized = [];
-  $.each(data, function (i, r) {
-    normalized.push({
-      id:          r.id || "",
-      title:       r.title || r.id || "",
-      titleIsFallback: !!r.titleIsFallback,
-      campaignId:  r.campaignId || "",
-      campaign:    r.campaign || "",
-      skillIds:    r.skillIds || [],
-      skills:      r.skills || [],
-      formats:     r.formats || [],
-      projectIds:  r.projectIds || [],
-      projects:    r.projects || [],
-      languages:   r.languages || [],
-      topics:      r.topics || [],
-      creators:    r.creators || [],
-      urls:        r.urls || [],
-      primaryUrl:  r.primaryUrl || "",
-      year:        r.year || "",
-      reviews:     r.reviews || [],
-      itemUrl:     r.itemUrl || "",
-      missing:     r.missing || {}
-    });
-  });
-  return normalized;
-}
-
-// ---------------------------------------------------------------------------
-// Filter panel builders — receive facet counts from the API response
-// ---------------------------------------------------------------------------
-function buildCheckboxFacet(containerSel, countSel, counts, selectedArr, labelFn, dataAttr, onToggle) {
-  var keys = Object.keys(counts || {});
-  keys.sort(function (a, b) { return (labelFn(a) || a).localeCompare(labelFn(b) || b); });
-  setCollapsibleCount(countSel, selectedArr.length, keys.length);
-  if (!keys.length) {
-    $(containerSel).html('<p class="filter-empty">None found.</p>');
-    return;
-  }
-  var html = "";
-  $.each(keys, function (i, key) {
-    var activeClass = selectedArr.indexOf(key) !== -1 ? " is-active" : "";
-    html += '<button type="button" class="resource-type-filter-button' + activeClass + '" data-' + dataAttr + '="' + escapeAttribute(key) + '">';
-    html += '<span class="resource-type-filter-name">' + escapeHtml(labelFn(key) || key) + "</span>";
-    html += '<span class="resource-type-filter-count">' + counts[key] + "</span>";
-    html += "</button>";
-  });
-  $(containerSel).html(html);
-  $(containerSel + " .resource-type-filter-button").on("click", function () { onToggle($(this).attr("data-" + dataAttr)); });
-}
-
-function buildCampaignFilter(facets) {
-  buildCheckboxFacet("#campaignFilters", "#campaignCount", facets.campaigns, state.campaigns, campaignLabel, "campaign-id", function (id) {
-    toggleInArray(state.campaigns, id); state.page = 1; render();
-  });
-}
-function buildSkillFilter(facets) {
-  buildCheckboxFacet("#skillFilters", "#skillCount", facets.skills, state.skills, skillLabel, "skill-id", function (id) {
-    toggleInArray(state.skills, id); state.page = 1; render();
-  });
-}
-function buildFormatFilter(facets) {
-  buildCheckboxFacet("#formatFilters", "#formatCount", facets.formats, state.formats, function (v) { return v; }, "format", function (v) {
-    toggleInArray(state.formats, v); state.page = 1; render();
-  });
-}
-function buildReviewFilter(facets) {
-  buildCheckboxFacet("#reviewFilters", "#reviewCount", facets.reviews, state.reviews, function (v) { return v; }, "review", function (v) {
-    toggleInArray(state.reviews, v); state.page = 1; render();
-  });
-}
-
-function buildLanguageFilter(facets) {
-  var langCounts = facets.languages || {};
-  var languages = Object.keys(langCounts);
-  languages.sort(function (a, b) { if (langCounts[b] !== langCounts[a]) return langCounts[b] - langCounts[a]; return a.localeCompare(b); });
-  var html = '<option value="">All languages</option>';
-  $.each(languages, function (i, l) {
-    html += '<option value="' + escapeAttribute(l) + '"' + (state.language === l ? " selected" : "") + ">" + escapeHtml(l) + " (" + langCounts[l] + ")</option>";
-  });
-  $("#languageFilter").html(html);
-}
-
-function buildYearFilter(facets) {
-  var yearCounts = facets.years || {};
-  var noDate = facets.yearNoDate || 0;
-  var years = Object.keys(yearCounts).sort();
-  setCollapsibleCount("#yearFilterCount", state.year ? 1 : 0, years.length);
-  if (!years.length) { $("#yearFilters").html('<p class="filter-empty">No years found.</p>'); return; }
-  var maxCount = 0;
-  $.each(years, function (i, y) { if (yearCounts[y] > maxCount) maxCount = yearCounts[y]; });
-  var html = "";
-  $.each(years, function (i, year) {
-    var pct = maxCount ? Math.round((yearCounts[year] / maxCount) * 100) : 0;
-    var active = state.year === year;
-    html += '<button type="button" class="year-bar-button' + (active ? " is-active" : "") + '" data-year="' + escapeAttribute(year) + '">';
-    html += '<span class="year-bar-label">' + escapeHtml(year) + "</span>";
-    html += '<span class="year-bar-track"><span class="year-bar-fill" style="width:' + pct + '%"></span></span>';
-    html += '<span class="year-bar-count">' + yearCounts[year] + "</span></button>";
-  });
-  if (noDate) html += '<p class="year-no-date">No year: ' + noDate + "</p>";
-  $("#yearFilters").html(html);
-  $(".year-bar-button").on("click", function () {
-    var year = $(this).attr("data-year");
-    state.year = (state.year === year) ? "" : year;
-    state.page = 1; render();
-  });
-}
-
-function buildSearchableList(containerSel, countSel, counts, selectedArr, searchTerm, dataAttr, onToggle) {
-  var keys = Object.keys(counts || {});
-  keys.sort(function (a, b) { if (counts[b] !== counts[a]) return counts[b] - counts[a]; return a.localeCompare(b); });
-  if (searchTerm) keys = keys.filter(function (k) { return k.toLowerCase().indexOf(searchTerm) !== -1; });
-  setCollapsibleCount(countSel, selectedArr.length, keys.length);
-  if (!keys.length) { $(containerSel).html('<p class="filter-empty">None found.</p>'); return; }
-  var html = "";
-  $.each(keys, function (i, key) {
-    var activeClass = selectedArr.indexOf(key) !== -1 ? " is-active" : "";
-    html += '<button type="button" class="publisher-filter-button' + activeClass + '" data-' + dataAttr + '="' + escapeAttribute(key) + '">';
-    html += '<span class="publisher-filter-name">' + escapeHtml(key) + "</span>";
-    html += '<span class="publisher-filter-count">' + counts[key] + "</span></button>";
-  });
-  $(containerSel).html(html);
-  $(containerSel + " .publisher-filter-button").on("click", function () { onToggle($(this).attr("data-" + dataAttr)); });
-}
-function buildCreatorFilters(facets) {
-  buildSearchableList("#creatorFilters", "#creatorCount", (facets && facets.creators) || {}, state.creators, state.creatorSearch, "creator", function (v) {
-    toggleInArray(state.creators, v); state.page = 1; render();
-  });
-}
-function buildProjectFilters(facets) {
-  buildSearchableList("#projectFilters", "#projectCount", (facets && facets.projects) || {}, state.projects, state.projectSearch, "project", function (v) {
-    toggleInArray(state.projects, v); state.page = 1; render();
-  });
-}
-function buildTopicPanel(facets) {
-  var subjectCounts = (facets && facets.topics) || {};
-  var topics = Object.keys(subjectCounts);
-  topics.sort(function (a, b) { if (subjectCounts[b] !== subjectCounts[a]) return subjectCounts[b] - subjectCounts[a]; return a.localeCompare(b); });
-  if (state.topicSearch) topics = topics.filter(function (t) { return t.toLowerCase().indexOf(state.topicSearch) !== -1; });
-  setCollapsibleCount("#topicCount", state.topics.length, topics.length);
-  if (!topics.length) { $("#topicFilters").html('<p class="filter-empty">No topics found.</p>'); return; }
-  var html = "";
-  $.each(topics, function (i, topic) {
-    var activeClass = state.topics.indexOf(topic) !== -1 ? " is-active" : "";
-    html += '<button type="button" class="subject-filter-button' + activeClass + '" data-topic="' + escapeAttribute(topic) + '">';
-    html += '<span class="subject-filter-name">' + escapeHtml(topic) + "</span>";
-    html += '<span class="subject-filter-count">' + subjectCounts[topic] + "</span></button>";
-  });
-  $("#topicFilters").html(html);
-  $(".subject-filter-button").on("click", function () { toggleTopicFilter($(this).data("topic")); });
-}
-
-function setCollapsibleCount(selector, activeCount, shownCount) {
-  var text = shownCount + " shown";
-  if (activeCount) { text = activeCount + " active \u00b7 " + text; $(selector).addClass("has-active"); }
-  else { $(selector).removeClass("has-active"); }
-  $(selector).text(text);
-}
-function updateImproveDataCount() {
-  var active = 0;
-  $.each(state.maintenance, function (key, isOn) { if (isOn) active++; });
-  var $count = $("#improveDataCount");
-  if (active) $count.text(active + " active").addClass("has-active");
-  else $count.text("").removeClass("has-active");
-}
-
-// ---------------------------------------------------------------------------
-// Main render — async, calls the API
-// ---------------------------------------------------------------------------
-function render() {
-  var requestId = ++_renderRequestId;
-  replaceUrlState();
-  $("#resultCount").text("Loading resources\u2026");
-  $("#results").attr("aria-busy", "true");
-
-  var params = buildUrlParams();
-  params.delete("view");
-
-  $.getJSON("/api/resources?" + params.toString())
-    .done(function (data) {
-      if (requestId !== _renderRequestId) return;
-      _lastFacets = data.facets;
-      state.page = data.page;
-      $("#exportCsvButton").prop("disabled", false);
-
-      buildCampaignFilter(data.facets);
-      buildSkillFilter(data.facets);
-      buildFormatFilter(data.facets);
-      buildReviewFilter(data.facets);
-      buildLanguageFilter(data.facets);
-      buildYearFilter(data.facets);
-      buildCreatorFilters(data.facets);
-      buildProjectFilters(data.facets);
-      buildTopicPanel(data.facets);
-
-      renderActiveFilters();
-
-      var from = (data.page - 1) * data.pageSize + 1;
-      var to = Math.min(data.page * data.pageSize, data.total);
-      $("#resultCount").text(data.total ? (data.total <= PAGE_SIZE ? data.total + " resources" : from + "\u2013" + to + " of " + data.total + " resources") : "0 resources");
-
-      if (!data.total) {
-        $("#results").attr("aria-busy", "false").removeClass("card-grid card-list")
-          .html('<div class="empty-state">No resources found. Try another search term, language, topic, campaign, creator, or project.</div>');
-        $("#pagination").empty();
-        return;
-      }
-
-      var pageItems = normalizeResources(data.results);
-      var html = (state.view === "list") ? renderListItems(pageItems) : renderCardItems(pageItems);
-      $("#results").attr("aria-busy", "false").removeClass("card-grid card-list").addClass(state.view === "list" ? "card-list" : "card-grid").html(html);
-      bindResultEvents();
-      renderPagination(data.total, data.totalPages);
-    })
-    .fail(function (xhr, status, error) {
-      if (requestId !== _renderRequestId) return;
-      $("#resultCount").text("Could not load resources");
-      $("#results").attr("aria-busy", "false").empty();
-      $("#statusMessage").html('<div class="error-state"><strong>Could not load resources.</strong><br>Make sure the server is running.</div>');
-      console.error("API error:", status, error);
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Item renderers
-// ---------------------------------------------------------------------------
-var LINK_ICON_SVG =
-  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-  '<path d="M6.5 3H3.75A1.75 1.75 0 0 0 2 4.75v7.5C2 13.216 2.784 14 3.75 14h7.5A1.75 1.75 0 0 0 13 12.25V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M9 2h5v5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M14 2 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function linkIconButton(url, label) {
-  return '<a class="link-icon-button" href="' + escapeAttribute(url) + '" target="_blank" rel="noopener" title="' + escapeAttribute(label) + '" aria-label="' + escapeAttribute(label) + '">' + LINK_ICON_SVG + "</a>";
-}
-function renderLinkIcons(resource) {
-  var html = "";
-  $.each(resource.urls, function (i, url) { html += linkIconButton(url, "Open resource"); });
-  return html;
-}
-
-function renderBadges(resource, context) {
-  var html = "";
-  var campActive = state.campaigns.indexOf(resource.campaignId) !== -1 ? " is-active" : "";
-  if (context === "list") {
-    if (resource.campaign) {
-      html += '<button type="button" class="row-type-label' + campActive + '" data-campaign-id="' + escapeAttribute(resource.campaignId) + '">' + escapeHtml(resource.campaign) + "</button>";
-    }
-    $.each(resource.languages, function (j, language) {
-      var langActive = state.language === language ? " is-active" : "";
-      html += '<button type="button" class="row-lang-label' + langActive + '" data-language="' + escapeAttribute(language) + '">' + escapeHtml(language) + "</button>";
-    });
-    return html;
-  }
-  if (resource.campaign) {
-    html += '<button type="button" class="badge badge--campaign badge--clickable' + campActive + '" data-campaign-id="' + escapeAttribute(resource.campaignId) + '">' + escapeHtml(resource.campaign) + "</button>";
-  }
-  $.each(resource.skillIds, function (i, skillId) {
-    var skActive = state.skills.indexOf(skillId) !== -1 ? " is-active" : "";
-    html += '<button type="button" class="badge badge--skill badge--clickable' + skActive + '" data-skill-id="' + escapeAttribute(skillId) + '">' + escapeHtml(skillLabel(skillId)) + "</button>";
-  });
-  $.each(resource.languages, function (j, language) {
-    var langActive = state.language === language ? " is-active" : "";
-    html += '<button type="button" class="badge badge--lang badge--clickable' + langActive + '" data-language="' + escapeAttribute(language) + '">' + escapeHtml(language) + "</button>";
-  });
-  return html;
-}
-
-function renderCreators(resource) {
-  if (!resource.creators.length) return "";
-  var html = '<p class="resource-creator"><span class="resource-creator-label" title="Creator">\u270D\uFE0F</span> ';
-  $.each(resource.creators, function (j, creator) {
-    var activeClass = state.creators.indexOf(creator) !== -1 ? " is-active" : "";
-    if (j > 0) html += ", ";
-    html += '<button type="button" class="creator-link' + activeClass + '" data-creator="' + escapeAttribute(creator) + '">' + escapeHtml(creator) + "</button>";
-  });
-  return html + "</p>";
-}
-function renderProjects(resource) {
-  if (!resource.projects.length) return "";
-  var html = '<p class="resource-project"><span class="resource-project-label" title="Project">\uD83E\uDDE9</span> ';
-  $.each(resource.projects, function (j, project) {
-    var activeClass = state.projects.indexOf(project) !== -1 ? " is-active" : "";
-    if (j > 0) html += ", ";
-    html += '<button type="button" class="project-link' + activeClass + '" data-project="' + escapeAttribute(project) + '">' + escapeHtml(project) + "</button>";
-  });
-  return html + "</p>";
-}
-function renderReviews(resource) {
-  if (!resource.reviews.length) return "";
-  return '<p class="resource-review"><span class="resource-review-label" title="Review status">\u2705</span> ' + escapeHtml(resource.reviews.join(", ")) + "</p>";
-}
-function renderSubjectTags(resource) {
-  if (!resource.topics.length) return "";
-  var html = '<div class="subject-tags">';
-  $.each(resource.topics, function (j, topic) {
-    var activeClass = state.topics.indexOf(topic) !== -1 ? " is-active" : "";
-    html += '<button type="button" class="subject-tag' + activeClass + '" data-topic="' + escapeAttribute(topic) + '">' + escapeHtml(topic) + "</button>";
-  });
-  return html + "</div>";
-}
-
-function renderCardItems(pageItems) {
-  var html = "";
-  $.each(pageItems, function (i, resource) {
-    html += '<article class="resource-card">';
-    html += '<div class="card-meta"><div class="card-badges">' + renderBadges(resource, "grid") + '<span class="badge badge--id">' + escapeHtml(resource.id) + "</span></div>";
-    var icons = renderLinkIcons(resource);
-    if (icons) html += '<div class="card-link-icons">' + icons + "</div>";
-    html += "</div>";
-    html += '<h2><a class="resource-title-link" href="' + escapeAttribute(resource.itemUrl) + '" target="_blank" rel="noopener">' + escapeHtml(resource.title) + "</a></h2>";
-    if (resource.year) html += '<p class="resource-date" title="Year">\uD83D\uDCC5 ' + escapeHtml(resource.year) + "</p>";
-    html += renderCreators(resource);
-    html += renderProjects(resource);
-    html += renderReviews(resource);
-    html += renderSubjectTags(resource);
-    html += "</article>";
-  });
-  return html;
-}
-function renderListItems(pageItems) {
-  var html = "";
-  $.each(pageItems, function (i, resource) {
-    html += '<article class="resource-row"><div class="row-badges">' + renderBadges(resource, "list") + "</div>";
-    html += '<div class="row-body"><h3 class="row-title"><a class="resource-title-link" href="' + escapeAttribute(resource.itemUrl) + '" target="_blank" rel="noopener">' + escapeHtml(resource.title) + "</a></h3>";
-    var metaParts = [];
-    if (resource.year) metaParts.push('<span class="row-meta-date">\uD83D\uDCC5 ' + escapeHtml(resource.year) + "</span>");
-    if (resource.creators.length) metaParts.push(renderCreators(resource));
-    if (resource.projects.length) metaParts.push(renderProjects(resource));
-    if (metaParts.length) html += '<div class="row-meta">' + metaParts.join('<span class="row-meta-sep">\u00b7</span>') + "</div>";
-    html += renderSubjectTags(resource);
-    html += "</div>";
-    html += '<div class="row-actions">';
-    var icons = renderLinkIcons(resource);
-    if (icons) html += '<div class="row-links">' + icons + "</div>";
-    html += '<span class="badge badge--id row-id-badge">' + escapeHtml(resource.id) + "</span></div></article>";
-  });
-  return html;
-}
-
-function bindResultEvents() {
-  $(".badge--campaign, .row-type-label").on("click", function () { toggleCampaignFilter($(this).data("campaign-id")); });
-  $(".badge--skill").on("click", function () { toggleSkillFilter($(this).data("skill-id")); });
-  $(".badge--lang, .row-lang-label").on("click", function () {
-    var language = $(this).data("language");
-    state.language = (state.language === language) ? "" : language;
-    state.page = 1; $("#languageFilter").val(state.language); render();
-  });
-  $(".subject-tag").on("click", function () { toggleTopicFilter($(this).data("topic")); });
-  $(".creator-link").on("click", function () { toggleInArray(state.creators, $(this).data("creator")); state.page = 1; render(); });
-  $(".project-link").on("click", function () { toggleInArray(state.projects, $(this).data("project")); state.page = 1; render(); });
-}
-
-// ---------------------------------------------------------------------------
-// Toggle helpers
-// ---------------------------------------------------------------------------
-function toggleInArray(arr, value) {
-  var idx = arr.indexOf(value);
-  if (idx === -1) arr.push(value); else arr.splice(idx, 1);
-}
-function toggleCampaignFilter(id) { toggleInArray(state.campaigns, id); state.page = 1; render(); }
-function toggleSkillFilter(id) { toggleInArray(state.skills, id); state.page = 1; render(); }
-function toggleTopicFilter(topic) { toggleInArray(state.topics, topic); state.page = 1; render(); }
-
-// ---------------------------------------------------------------------------
-// Summary stats (uses cached metadata, not live resource list)
-// ---------------------------------------------------------------------------
-function renderSummaryStats() {
-  if (!_metadata) return;
-  var stats = {
-    resources: _metadata.totalResources || 0,
-    formats:   Object.keys(_metadata.formats || {}).length,
-    languages: Object.keys(_metadata.languages || {}).length,
-    topics:    Object.keys(_metadata.topics || {}).length,
-    campaigns: Object.keys(_metadata.campaigns || {}).length,
-    creators:  Object.keys(_metadata.creators || {}).length
-  };
-  var html = "";
-  html += '<div class="summary-stat"><span class="summary-stat-number">' + stats.resources + '</span><span class="summary-stat-label">Resources</span></div>';
-  html += '<div class="summary-stat"><span class="summary-stat-number">' + stats.campaigns + '</span><span class="summary-stat-label">Campaigns</span></div>';
-  html += '<div class="summary-stat"><span class="summary-stat-number">' + stats.formats + '</span><span class="summary-stat-label">Formats</span></div>';
-  html += '<button type="button" id="languageInsightsButton" class="summary-stat summary-stat-button"><span class="summary-stat-number">' + stats.languages + '</span><span class="summary-stat-label">Languages</span><span class="summary-stat-hint">View insights \u2192</span></button>';
-  html += '<button type="button" id="topicInsightsButton" class="summary-stat summary-stat-button"><span class="summary-stat-number">' + stats.topics + '</span><span class="summary-stat-label">Topics</span><span class="summary-stat-hint">View insights \u2192</span></button>';
-  html += '<div class="summary-stat"><span class="summary-stat-number">' + stats.creators + '</span><span class="summary-stat-label">Creators</span></div>';
-  $("#summaryStats").html(html);
-  $("#languageInsightsButton").on("click", function () { openLanguageInsights(); });
-  $("#topicInsightsButton").on("click", function () { openTopicInsights(); });
-}
-
-// ---------------------------------------------------------------------------
-// Active filter strip
-// ---------------------------------------------------------------------------
-function renderActiveFilters() {
-  var hasCampaigns = state.campaigns.length > 0;
-  var hasSkills = state.skills.length > 0;
-  var hasFormats = state.formats.length > 0;
-  var hasYear = !!state.year;
-  var hasReviews = state.reviews.length > 0;
-  var hasTopics = state.topics.length > 0;
-  var hasCreators = state.creators.length > 0;
-  var hasProjects = state.projects.length > 0;
-  var hasMaint = state.maintenance.missingCreator || state.maintenance.missingUrl || state.maintenance.missingLanguage || state.maintenance.missingTopic || state.maintenance.missingYear || state.maintenance.missingSkill;
-
-  if (!hasCampaigns && !hasSkills && !hasFormats && !hasYear && !hasReviews && !hasTopics && !hasCreators && !hasProjects && !hasMaint) {
-    $("#activeFilters").empty();
-    return;
-  }
-  var html = '<div class="active-filter-strip">';
-  if (hasCampaigns) {
-    html += "<span>Campaign: <strong>" + escapeHtml(state.campaigns.map(campaignLabel).join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="campaigns">Clear</button>';
-  }
-  if (hasSkills) {
-    html += "<span>Skill: <strong>" + escapeHtml(state.skills.map(skillLabel).join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="skills">Clear</button>';
-  }
-  if (hasFormats) {
-    html += "<span>Format: <strong>" + escapeHtml(state.formats.join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="formats">Clear</button>';
-  }
-  if (hasYear) {
-    html += "<span>Year: <strong>" + escapeHtml(state.year) + "</strong></span>";
-    html += '<button type="button" class="clear-year-filter">Clear</button>';
-  }
-  if (hasReviews) {
-    html += "<span>Review: <strong>" + escapeHtml(state.reviews.join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="reviews">Clear</button>';
-  }
-  if (hasTopics) {
-    html += '<span class="active-filter-label">Topic:</span>';
-    $.each(state.topics, function (i, topic) {
-      html += '<button type="button" class="active-filter-chip remove-topic-chip" data-topic="' + escapeAttribute(topic) + '">' + escapeHtml(topic) + ' <span aria-hidden="true">\u00d7</span></button>';
-    });
-  }
-  if (hasCreators) {
-    html += "<span>Creator: <strong>" + escapeHtml(state.creators.join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="creators">Clear</button>';
-  }
-  if (hasProjects) {
-    html += "<span>Project: <strong>" + escapeHtml(state.projects.join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-generic-filter" data-clear="projects">Clear</button>';
-  }
-  if (hasMaint) {
-    var labels = [];
-    if (state.maintenance.missingCreator) labels.push("no creator");
-    if (state.maintenance.missingUrl) labels.push("no link");
-    if (state.maintenance.missingLanguage) labels.push("no language");
-    if (state.maintenance.missingTopic) labels.push("no topic");
-    if (state.maintenance.missingYear) labels.push("no year");
-    if (state.maintenance.missingSkill) labels.push("no skill level");
-    html += "<span>Improve data: <strong>" + escapeHtml(labels.join(", ")) + "</strong></span>";
-    html += '<button type="button" class="clear-maintenance-filter">Clear</button>';
-  }
-  html += "</div>";
-  $("#activeFilters").html(html);
-
-  $(".clear-generic-filter").on("click", function () {
-    var key = $(this).data("clear");
-    state[key] = [];
-    state.page = 1; render();
-  });
-  $(".clear-year-filter").on("click", function () { state.year = ""; state.page = 1; render(); });
-  $(".remove-topic-chip").on("click", function () {
-    var topic = $(this).data("topic");
-    state.topics = state.topics.filter(function (t) { return t !== topic; });
-    state.page = 1; render();
-  });
-  $(".clear-maintenance-filter").on("click", function () {
-    state.maintenance.missingCreator = false;
-    state.maintenance.missingUrl = false;
-    state.maintenance.missingLanguage = false;
-    state.maintenance.missingTopic = false;
-    state.maintenance.missingYear = false;
-    state.maintenance.missingSkill = false;
-    state.page = 1;
-    syncUiToState();
-    render();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Pagination
-// ---------------------------------------------------------------------------
-function renderPagination(total, totalPages) {
-  var $el = $("#pagination");
-  if (totalPages <= 1) { $el.empty(); return; }
-  var current = state.page;
-  var pageNums = getPageNumbers(current, totalPages);
-  var html = "";
-  html += '<button type="button" class="pagination-button pagination-prev"' + (current === 1 ? ' disabled aria-disabled="true"' : "") + ' aria-label="Previous page">\u2190 Prev</button>';
-  $.each(pageNums, function (i, num) {
-    if (num === "...") {
-      html += '<span class="pagination-ellipsis" aria-hidden="true">\u2026</span>';
-    } else {
-      html += '<button type="button" class="pagination-button pagination-number' + (num === current ? " is-current" : "") + '" data-page="' + num + '"' + (num === current ? ' aria-current="page"' : "") + ' aria-label="Page ' + num + '">' + num + "</button>";
-    }
-  });
-  html += '<button type="button" class="pagination-button pagination-next"' + (current === totalPages ? ' disabled aria-disabled="true"' : "") + ' aria-label="Next page">Next \u2192</button>';
-  $el.html(html);
-  $(".pagination-prev").on("click", function () { if (state.page > 1) { state.page -= 1; scrollToResults(); render(); } });
-  $(".pagination-next").on("click", function () { if (state.page < totalPages) { state.page += 1; scrollToResults(); render(); } });
-  $(".pagination-number").on("click", function () {
-    var target = parseInt($(this).data("page"), 10);
-    if (target !== state.page) { state.page = target; scrollToResults(); render(); }
-  });
-}
-function getPageNumbers(current, total) {
-  var WING = 2;
-  if (total <= 2 * WING + 5) { var all = []; for (var p = 1; p <= total; p++) all.push(p); return all; }
-  var rangeStart = Math.max(2, current - WING);
-  var rangeEnd = Math.min(total - 1, current + WING);
-  var pages = [1];
-  if (rangeStart > 2) pages.push("...");
-  for (var i = rangeStart; i <= rangeEnd; i++) pages.push(i);
-  if (rangeEnd < total - 1) pages.push("...");
-  pages.push(total);
-  return pages;
-}
-function scrollToResults() {
-  var $results = $("#results");
-  if (!$results.length) return;
-  var offset = $results.offset().top - 20;
-  if ($(window).scrollTop() > offset) $("html, body").animate({ scrollTop: offset }, 180);
-}
-
-// ---------------------------------------------------------------------------
-// Language insights modal
-// ---------------------------------------------------------------------------
-function openLanguageInsights() { renderLanguageInsights(); $("#languageInsightsModal").prop("hidden", false); $("body").addClass("modal-open"); }
-function closeLanguageInsights() { $("#languageInsightsModal").prop("hidden", true); $("body").removeClass("modal-open"); }
-function getLanguageInsights() {
-  var li = (_metadata && _metadata.insights && _metadata.insights.languages) || {};
-  var total = (_metadata && _metadata.totalResources) || 0;
-  var unique = Object.keys((_metadata && _metadata.languages) || {}).length;
-  return {
-    totalResources: total, uniqueLanguages: unique,
-    resourcesWithLanguage: li.withLanguage || 0, missingLanguage: li.missingLanguage || 0,
-    topLanguages: li.topLanguages || [], rareLanguages: li.rareLanguages || [], maxLanguageCount: li.maxCount || 0,
-    diversity: [
-      { label: "Monolingual", count: li.monolingual || 0, note: "resources with exactly one language" },
-      { label: "Bilingual", count: li.bilingual || 0, note: "resources with two languages" },
-      { label: "Multilingual", count: li.multilingual || 0, note: "resources with three or more languages" },
-      { label: "Missing language", count: li.missingLanguage || 0, note: "resources without language data" }
-    ]
-  };
-}
-function renderOverviewCard(number, label, note) {
-  return '<div class="language-overview-card"><span class="language-overview-number">' + escapeHtml(String(number)) + '</span><span class="language-overview-label">' + escapeHtml(label) + '</span><p class="language-overview-note">' + escapeHtml(note) + "</p></div>";
-}
-function renderLanguageInsights() {
-  var insights = getLanguageInsights();
-  var html = '<div class="language-overview-grid">';
-  html += renderOverviewCard(insights.uniqueLanguages, "Languages", "unique languages in the dataset");
-  html += renderOverviewCard(insights.resourcesWithLanguage, "Tagged resources", "resources with at least one language");
-  html += renderOverviewCard(insights.missingLanguage, "Missing language", "resources needing language data");
-  html += "</div>";
-  if (insights.missingLanguage > 0) {
-    html += '<div class="language-action-strip"><span>There are resources without language data.</span><button type="button" class="language-missing-button" id="langMissingBtn">Show resources missing language</button></div>';
-  }
-  html += '<div class="language-insight-section"><div class="section-heading-row"><div><h3>Top languages</h3><p>Click a language to filter the resource list.</p></div><p>' + insights.topLanguages.length + ' shown</p></div><div class="language-bar-list">';
-  $.each(insights.topLanguages, function (i, item) {
-    var width = insights.maxLanguageCount ? Math.round((item.count / insights.maxLanguageCount) * 100) : 0;
-    html += '<button type="button" class="language-bar-button" data-language="' + escapeAttribute(item.language) + '"><span class="language-bar-label">' + escapeHtml(item.language) + '</span><span class="language-bar-track"><span class="language-bar-fill" style="width:' + width + '%"></span></span><span class="language-bar-count">' + item.count + "</span></button>";
-  });
-  html += "</div></div>";
-  html += '<div class="language-insight-grid"><div class="language-insight-section"><h3>Language diversity</h3><div class="diversity-list">';
-  $.each(insights.diversity, function (i, item) {
-    var width = insights.totalResources ? Math.round((item.count / insights.totalResources) * 100) : 0;
-    html += '<div class="diversity-row"><div class="diversity-row-top"><span>' + escapeHtml(item.label) + "</span><strong>" + item.count + '</strong></div><div class="diversity-track"><span style="width:' + width + '%"></span></div><p>' + escapeHtml(item.note) + "</p></div>";
-  });
-  html += "</div></div>";
-  html += '<div class="language-insight-section"><div class="section-heading-row"><div><h3>Rare languages</h3><p>Used by only one or two resources.</p></div><p>' + insights.rareLanguages.length + " found</p></div>";
-  if (insights.rareLanguages.length) {
-    html += '<div class="rare-language-list">';
-    $.each(insights.rareLanguages, function (i, item) {
-      html += '<button type="button" class="rare-language-pill" data-language="' + escapeAttribute(item.language) + '">' + escapeHtml(item.language) + " <span>(" + item.count + ")</span></button>";
-    });
-    html += "</div>";
-  } else {
-    html += '<p class="insight-note">No rare languages found.</p>';
-  }
-  html += "</div></div>";
-  $("#languageInsightsContent").html(html);
-  $(".language-bar-button, .rare-language-pill").on("click", function () { applyLanguageFilter($(this).data("language")); });
-  $("#langMissingBtn").on("click", function () {
-    state.maintenance.missingLanguage = true; state.page = 1;
-    $("#missingLanguageFilter").prop("checked", true);
-    closeLanguageInsights(); render();
-  });
-}
-function applyLanguageFilter(language) {
-  state.language = language; state.page = 1;
-  $("#languageFilter").val(language);
-  closeLanguageInsights(); render();
-}
-
-// ---------------------------------------------------------------------------
-// Topic insights modal
-// ---------------------------------------------------------------------------
-function openTopicInsights() { renderTopicInsights(); $("#topicInsightsModal").prop("hidden", false); $("body").addClass("modal-open"); }
-function closeTopicInsights() { $("#topicInsightsModal").prop("hidden", true); $("body").removeClass("modal-open"); }
-function getTopicInsights() {
-  var ti = (_metadata && _metadata.insights && _metadata.insights.topics) || {};
-  var total = (_metadata && _metadata.totalResources) || 0;
-  var unique = Object.keys((_metadata && _metadata.topics) || {}).length;
-  return {
-    totalResources: total, uniqueTopics: unique,
-    resourcesWithTopics: ti.withTopics || 0, missingTopics: ti.missingTopics || 0,
-    topTopics: ti.topTopics || [], rareTopics: ti.rareTopics || [], maxTopicCount: ti.maxCount || 0,
-    coverage: [
-      { label: "No topics", count: ti.zero || 0, note: "resources with no topics" },
-      { label: "1\u20132 topics", count: ti.oneTwo || 0, note: "resources with one or two topics" },
-      { label: "3\u20135 topics", count: ti.threeToFive || 0, note: "resources with three to five topics" },
-      { label: "6+ topics", count: ti.sixPlus || 0, note: "resources with six or more topics" }
-    ]
-  };
-}
-function renderTopicInsights() {
-  var insights = getTopicInsights();
-  var html = '<div class="language-overview-grid">';
-  html += renderOverviewCard(insights.uniqueTopics, "Topics", "unique topics in the dataset");
-  html += renderOverviewCard(insights.resourcesWithTopics, "Tagged resources", "resources with at least one topic");
-  html += renderOverviewCard(insights.missingTopics, "Missing topics", "resources needing topic data");
-  html += "</div>";
-  if (insights.missingTopics > 0) {
-    html += '<div class="language-action-strip"><span>There are resources without topic data.</span><button type="button" class="language-missing-button" id="topicMissingBtn">Show resources missing topics</button></div>';
-  }
-  html += '<div class="language-insight-grid"><div class="language-insight-section"><div class="section-heading-row"><div><h3>Top topics</h3><p>Click a topic to filter.</p></div><p>' + insights.topTopics.length + ' shown</p></div><div class="language-bar-list">';
-  $.each(insights.topTopics, function (i, item) {
-    var width = insights.maxTopicCount ? Math.round((item.count / insights.maxTopicCount) * 100) : 0;
-    html += '<button type="button" class="language-bar-button" data-topic="' + escapeAttribute(item.topic) + '"><span class="language-bar-label">' + escapeHtml(item.topic) + '</span><span class="language-bar-track"><span class="language-bar-fill" style="width:' + width + '%"></span></span><span class="language-bar-count">' + item.count + "</span></button>";
-  });
-  html += "</div></div>";
-  html += '<div class="language-insight-section"><h3>Topic coverage</h3><div class="diversity-list">';
-  $.each(insights.coverage, function (i, item) {
-    var width = insights.totalResources ? Math.round((item.count / insights.totalResources) * 100) : 0;
-    html += '<div class="diversity-row"><div class="diversity-row-top"><span>' + escapeHtml(item.label) + "</span><strong>" + item.count + '</strong></div><div class="diversity-track"><span style="width:' + width + '%"></span></div><p>' + escapeHtml(item.note) + "</p></div>";
-  });
-  html += "</div>";
-  html += '<div class="section-heading-row" style="margin-top:16px"><div><h3>Rarely used topics</h3><p>Used only once or twice.</p></div><p>' + insights.rareTopics.length + " found</p></div>";
-  if (insights.rareTopics.length) {
-    html += '<div class="rare-language-list">';
-    $.each(insights.rareTopics, function (i, item) {
-      html += '<button type="button" class="rare-language-pill" data-topic="' + escapeAttribute(item.topic) + '">' + escapeHtml(item.topic) + " <span>(" + item.count + ")</span></button>";
-    });
-    html += "</div>";
-  } else {
-    html += '<p class="insight-note">No rarely used topics found.</p>';
-  }
-  html += "</div></div>";
-  $("#topicInsightsContent").html(html);
-  $(".language-bar-button, .rare-language-pill").on("click", function () {
-    var topic = $(this).data("topic");
-    if (state.topics.indexOf(topic) === -1) state.topics.push(topic);
-    state.page = 1; closeTopicInsights(); render();
-  });
-  $("#topicMissingBtn").on("click", function () {
-    state.maintenance.missingTopic = true; state.page = 1;
-    $("#missingTopicFilter").prop("checked", true);
-    closeTopicInsights(); render();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Escape helpers
-// ---------------------------------------------------------------------------
-function escapeHtml(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-function escapeAttribute(value) { return escapeHtml(value || "#"); }
