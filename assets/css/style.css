@@ -186,7 +186,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .resource-card:hover { border-color: rgba(185,110,0,.5); box-shadow: 0 3px 10px rgba(30,23,16,.09); }
 .card-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 9px; }
 .card-badges { display: flex; flex-wrap: wrap; gap: 5px; flex: 1 1 auto; min-width: 0; }
-.card-link-icons { display: flex; gap: 4px; flex: 0 0 auto; }
+.card-link-icons { display: flex; flex-wrap: wrap; gap: 5px; flex: 0 0 auto; justify-content: flex-end; max-width: 55%; }
 .badge { display: inline-flex; align-items: center; max-width: 100%; border: 1px solid transparent; border-radius: 4px; padding: 1px 5px; font-size: 10px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
 .badge--campaign { background: var(--ink); border-color: var(--ink); color: white; }
 .badge--skill { background: #DEF0D9; border-color: #b8dfaa; color: #2E6B1D; }
@@ -211,9 +211,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .subject-tag { background: var(--subject-bg); color: var(--subject-text); border: 1px solid var(--subject-border); border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .1s, color .1s; }
 .subject-tag:hover, .subject-tag:focus { background: #d9c3e8; outline: none; }
 .subject-tag.is-active { background: var(--subject-text); border-color: var(--subject-text); color: white; }
-.link-icon-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent); background: var(--accent); color: var(--text) !important; text-decoration: none; transition: background .12s, border-color .12s; }
-.link-icon-button svg { display: block; }
-.link-icon-button:hover, .link-icon-button:focus-visible { background: var(--accent-dark); border-color: var(--accent-dark); outline: none; }
+/* Labeled link pills — always show what a link actually opens ("Watch
+   video", "Slides") rather than an unlabeled icon. The primary-resource
+   pill and the slides pill are visually distinct so a card with both is
+   unambiguous at a glance. */
+.link-pill-button {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--text) !important;
+  border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 700;
+  text-decoration: none; white-space: nowrap; transition: background .12s, border-color .12s;
+}
+.link-pill-button:hover, .link-pill-button:focus-visible { background: var(--accent-dark); border-color: var(--accent-dark); outline: none; }
+.link-pill-button--slides {
+  background: var(--subject-bg); border-color: var(--subject-border); color: var(--subject-text) !important;
+}
+.link-pill-button--slides:hover, .link-pill-button--slides:focus-visible { background: var(--subject-text); border-color: var(--subject-text); color: white !important; outline: none; }
 .empty-state, .error-state { background: white; border: 1px dashed var(--border); border-radius: var(--radius); padding: 28px; text-align: center; color: var(--muted); grid-column: 1/-1; }
 .error-state { border-color: #cc3333; color: #992222; }
 
@@ -231,9 +243,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .row-meta-date { font-weight: 600; white-space: nowrap; }
 .row-meta-sep { color: var(--border); user-select: none; }
 .row-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; padding-top: 1px; }
-.row-links { display: flex; flex-direction: row; gap: 4px; }
-.row-links .link-icon-button { width: 26px; height: 26px; }
-.row-links .link-icon-button svg { width: 13px; height: 13px; }
+.row-links { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.row-links .link-pill-button { font-size: 10px; padding: 3px 8px; }
 .row-id-badge { margin-left: 0 !important; }
 .row-type-label, .row-lang-label { display: block; width: 100%; border: none; background: none; padding: 0; margin: 0; font-family: inherit; font-size: 11px; font-weight: 700; color: var(--text); cursor: pointer; text-align: left; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; }
 .row-lang-label { font-weight: 600; color: var(--subject-text); }
