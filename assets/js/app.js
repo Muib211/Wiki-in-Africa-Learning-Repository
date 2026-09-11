@@ -177,14 +177,14 @@ function exportCsv() {
   params.delete("view");
   $.getJSON("/api/resources?" + params.toString())
     .done(function (data) {
-      var columns = ["id", "title", "campaign", "skills", "formats", "projects", "languages", "topics", "creators", "year", "reviews", "primary_url", "item_url"];
+      var columns = ["id", "title", "campaign", "skills", "formats", "projects", "languages", "topics", "creators", "year", "reviews", "primary_url", "slides_url", "item_url"];
       var rows = [columns.map(csvQuote).join(",")];
       $.each(data.results, function (i, r) {
         var row = [
           r.id, r.title, r.campaign,
           (r.skills || []).join(" | "), (r.formats || []).join(" | "), (r.projects || []).join(" | "),
           (r.languages || []).join(" | "), (r.topics || []).join(" | "), (r.creators || []).join(" | "),
-          r.year, (r.reviews || []).join(" | "), r.primaryUrl, r.itemUrl
+          r.year, (r.reviews || []).join(" | "), r.primaryUrl, r.slidesUrl || "", r.itemUrl
         ].map(csvQuote).join(",");
         rows.push(row);
       });
@@ -353,6 +353,7 @@ function normalizeResources(data) {
       creators:    r.creators || [],
       urls:        r.urls || [],
       primaryUrl:  r.primaryUrl || "",
+      slidesUrl:   r.slidesUrl || "",
       year:        r.year || "",
       reviews:     r.reviews || [],
       itemUrl:     r.itemUrl || "",
@@ -561,17 +562,33 @@ function render() {
 // ---------------------------------------------------------------------------
 // Item renderers
 // ---------------------------------------------------------------------------
-var LINK_ICON_SVG =
-  '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">' +
-  '<path d="M6.5 3H3.75A1.75 1.75 0 0 0 2 4.75v7.5C2 13.216 2.784 14 3.75 14h7.5A1.75 1.75 0 0 0 13 12.25V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M9 2h5v5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<path d="M14 2 7.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-function linkIconButton(url, label) {
-  return '<a class="link-icon-button" href="' + escapeAttribute(url) + '" target="_blank" rel="noopener" title="' + escapeAttribute(label) + '" aria-label="' + escapeAttribute(label) + '">' + LINK_ICON_SVG + "</a>";
+// Format-aware label for the main resource link, so a button always says
+// what it actually opens ("Watch video") rather than a generic, ambiguous
+// arrow icon that looks the same regardless of what it points to.
+function primaryLinkLabel(resource) {
+  var f = (resource.formats && resource.formats[0]) || "";
+  if (f === "Video")         return { icon: "\uD83C\uDFAC", text: "Watch video" };
+  if (f === "Document")      return { icon: "\uD83D\uDCC4", text: "Open document" };
+  if (f === "Article")       return { icon: "\uD83D\uDCF0", text: "Read article" };
+  if (f === "Website")       return { icon: "\uD83C\uDF10", text: "Visit website" };
+  if (f === "Wikibook")      return { icon: "\uD83D\uDCD6", text: "Open book" };
+  if (f === "ZIP/Package")   return { icon: "\uD83D\uDCE6", text: "Download package" };
+  return { icon: "\uD83D\uDD17", text: "Open resource" };
 }
+function linkPillButton(url, icon, text, extraClass) {
+  return '<a class="link-pill-button' + (extraClass ? " " + extraClass : "") + '" href="' + escapeAttribute(url) + '" target="_blank" rel="noopener">' + icon + " " + escapeHtml(text) + "</a>";
+}
+// Renders one labeled pill per main resource URL (format-aware text), plus a
+// separately styled "Slides" pill whenever the resource has a presentation
+// slides link (P21) -- so a resource with both a video and slides shows two
+// unmistakably different buttons instead of two identical arrow icons.
 function renderLinkIcons(resource) {
   var html = "";
-  $.each(resource.urls, function (i, url) { html += linkIconButton(url, "Open resource"); });
+  var label = primaryLinkLabel(resource);
+  $.each(resource.urls, function (i, url) { html += linkPillButton(url, label.icon, label.text); });
+  if (resource.slidesUrl) {
+    html += linkPillButton(resource.slidesUrl, "\uD83D\uDCCA", "Slides", "link-pill-button--slides");
+  }
   return html;
 }
 
