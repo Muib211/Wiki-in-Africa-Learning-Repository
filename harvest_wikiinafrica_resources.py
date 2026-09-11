@@ -26,6 +26,8 @@ Instead, an item counts as a training resource simply by carrying a P2
   P9  year        publication year                     (string/value, single)
   P10 topic       subject/theme                         (item ref OR string, multi)
   P11 review      review status (e.g. "Reviewed")       (item ref, multi)
+  P21 slides      presentation slides URL, for resources
+                  that have both a video and a slide deck (string, single)
 """
 
 import argparse
@@ -82,7 +84,7 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 QUERY = PREFIXES + """
 SELECT ?item ?itemLabel ?campQ ?campLabel
        ?skillQs ?skills ?formats ?projQs ?projects
-       ?languages ?topics ?creators ?urls ?years ?reviews
+       ?languages ?topics ?creators ?urls ?slidesUrls ?years ?reviews
 WHERE {
   ?item wdt:P2 ?campQ .
   FILTER(?campQ IN (wd:Q4,wd:Q5,wd:Q6,wd:Q7,wd:Q8,wd:Q9,wd:Q10,wd:Q11,wd:Q12))
@@ -132,6 +134,11 @@ WHERE {
   OPTIONAL {
     SELECT ?item (GROUP_CONCAT(DISTINCT ?urlVal; separator=" | ") AS ?urls)
     WHERE { ?item wdt:P1 ?urlVal . }
+    GROUP BY ?item
+  }
+  OPTIONAL {
+    SELECT ?item (GROUP_CONCAT(DISTINCT ?slidesVal; separator=" | ") AS ?slidesUrls)
+    WHERE { ?item wdt:P21 ?slidesVal . }
     GROUP BY ?item
   }
   OPTIONAL {
@@ -227,6 +234,7 @@ def parse_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     creators_raw = value(row, "creators")
     creators = split_list(creators_raw, " & ")
     urls = split_list(value(row, "urls"), " | ")
+    slides_urls = split_list(value(row, "slidesUrls"), " | ")
 
     resource = {
         "id":         item_id,
@@ -244,6 +252,7 @@ def parse_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "creators":   creators,
         "urls":       urls,
         "primaryUrl": urls[0] if urls else "",
+        "slidesUrl":  slides_urls[0] if slides_urls else "",
         "year":       (years[0][:4] if years and years[0][:4].isdigit() else ""),
         "reviews":    reviews,
         "itemUrl":    f"https://wikiinafrica.wikibase.cloud/wiki/Item:{item_id}",
