@@ -234,7 +234,7 @@ def _apply_filters(
             haystack = " ".join([
                 r.get("id", ""),
                 r.get("title", ""),
-                r.get("campaign", ""),
+                " ".join(r.get("campaigns", [])),
                 " ".join(r.get("creators", [])),
                 " ".join(r.get("formats", [])),
                 " ".join(r.get("languages", [])),
@@ -246,7 +246,7 @@ def _apply_filters(
                 continue
 
         if exclude != "campaigns" and campaigns:
-            if r.get("campaignId") not in campaigns:
+            if not _has_any(r.get("campaignIds", []), campaigns):
                 continue
         if exclude != "skills" and skills:
             if not _has_any(r.get("skillIds", []), skills):
@@ -297,7 +297,7 @@ def _sort_resources(resources: List[Dict[str, Any]], sort: str) -> List[Dict[str
         return (r.get("title") or "").lower()
 
     def campaign_key(r: Dict[str, Any]) -> str:
-        return (r.get("campaign") or "").lower()
+        return ((r.get("campaigns") or [""])[0]).lower()
 
     def skill_key(r: Dict[str, Any]) -> int:
         ids = r.get("skillIds") or []
@@ -331,15 +331,6 @@ def _count(pool: List[Dict], key: str) -> Dict[str, int]:
     for r in pool:
         for v in r.get(key, []):
             c[v] += 1
-    return dict(c)
-
-
-def _count_campaigns(pool: List[Dict]) -> Dict[str, int]:
-    c: Counter = Counter()
-    for r in pool:
-        cid = r.get("campaignId")
-        if cid:
-            c[cid] += 1
     return dict(c)
 
 
@@ -438,7 +429,7 @@ def api_resources():
 
     year_counts, year_no_date = _count_years(_apply_filters(resources, **fkw, exclude="year"))
     facets = {
-        "campaigns": _count_campaigns(_apply_filters(resources, **fkw, exclude="campaigns")),
+        "campaigns": _count(_apply_filters(resources, **fkw, exclude="campaigns"), "campaignIds"),
         "skills":    _count(_apply_filters(resources, **fkw, exclude="skills"),    "skillIds"),
         "formats":   _count(_apply_filters(resources, **fkw, exclude="formats"),   "formats"),
         "projects":  _count(_apply_filters(resources, **fkw, exclude="projects"),  "projects"),
