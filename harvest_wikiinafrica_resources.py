@@ -82,13 +82,33 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 # endpoint. Isolated subqueries are cheap and still guarantee exactly one
 # output row per item.
 QUERY = PREFIXES + """
-SELECT ?item ?itemLabel ?campQ ?campLabel
+SELECT ?item ?itemLabel ?campQs
        ?skillQs ?skills ?formats ?projQs ?projects
        ?languages ?topics ?creators ?urls ?slidesUrls ?years ?reviews
 WHERE {
-  ?item wdt:P2 ?campQ .
-  FILTER(?campQ IN (wd:Q4,wd:Q5,wd:Q6,wd:Q7,wd:Q8,wd:Q9,wd:Q10,wd:Q11,wd:Q12))
+  # Select each qualifying item exactly once, regardless of how many
+  # campaign statements it carries -- SELECT DISTINCT here is what prevents
+  # an item with two or more P2 values from producing two or more output
+  # rows (which previously caused such items to appear as duplicate
+  # resources in resources.json).
+  {
+    SELECT DISTINCT ?item WHERE {
+      ?item wdt:P2 ?anyCampQ .
+      FILTER(?anyCampQ IN (wd:Q4,wd:Q5,wd:Q6,wd:Q7,wd:Q8,wd:Q9,wd:Q10,wd:Q11,wd:Q12))
+    }
+  }
 
+  # Campaign gets the same isolated-subquery treatment as every other
+  # multi-valued property below, rather than being read directly off the
+  # outer pattern -- an item can legitimately carry more than one campaign.
+  OPTIONAL {
+    SELECT ?item (GROUP_CONCAT(DISTINCT ?campQ; separator="|") AS ?campQs)
+    WHERE {
+      ?item wdt:P2 ?campQ .
+      FILTER(?campQ IN (wd:Q4,wd:Q5,wd:Q6,wd:Q7,wd:Q8,wd:Q9,wd:Q10,wd:Q11,wd:Q12))
+    }
+    GROUP BY ?item
+  }
   OPTIONAL {
     SELECT ?item
       (GROUP_CONCAT(DISTINCT ?skillQ;   separator="|")  AS ?skillQs)
@@ -156,7 +176,7 @@ WHERE {
     bd:serviceParam wikibase:language "en" .
   }
 }
-ORDER BY ?campLabel ?itemLabel
+ORDER BY ?itemLabel
 """
 
 
@@ -220,7 +240,8 @@ def parse_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
     title = value(row, "itemLabel") or item_id
-    camp_id = item_id_from_uri(value(row, "campQ"))
+    camp_ids = sorted(q_ids_from_grouped(value(row, "campQs")))
+    camp_labels = [CAMPAIGNS.get(cid, {}).get("label", cid) for cid in camp_ids]
 
     skill_ids = q_ids_from_grouped(value(row, "skillQs"))
     skills = split_list(value(row, "skills"), " | ")
@@ -240,8 +261,8 @@ def parse_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         "id":         item_id,
         "title":      title,
         "titleIsFallback": title == item_id,
-        "campaignId": camp_id,
-        "campaign":   value(row, "campLabel") or CAMPAIGNS.get(camp_id, {}).get("label", camp_id),
+        "campaignIds": camp_ids,
+        "campaigns":   camp_labels,
         "skillIds":   skill_ids,
         "skills":     skills,
         "formats":    formats,
@@ -284,8 +305,7 @@ def build_metadata(resources: List[Dict[str, Any]], *, endpoint: str) -> Dict[st
     missing_counts:  Counter = Counter()
 
     for r in resources:
-        if r["campaignId"]:
-            campaign_counts[r["campaignId"]] += 1
+        for cid in r["campaignIds"]: campaign_counts[cid] += 1
         for sid in r["skillIds"]:   skill_counts[sid]   += 1
         for f   in r["formats"]:    format_counts[f]     += 1
         for p   in r["projects"]:   project_counts[p]    += 1
@@ -375,7 +395,7 @@ def main() -> int:
         if parsed:
             resources.append(parsed)
 
-    resources.sort(key=lambda r: ((r["campaign"] or "").lower(), (r["title"] or "").lower()))
+    resources.sort(key=lambda r: (((r["campaigns"] or [""])[0]).lower(), (r["title"] or "").lower()))
 
     metadata = build_metadata(resources, endpoint=args.endpoint)
 
