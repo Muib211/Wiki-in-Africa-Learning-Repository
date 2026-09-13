@@ -177,11 +177,11 @@ function exportCsv() {
   params.delete("view");
   $.getJSON("/api/resources?" + params.toString())
     .done(function (data) {
-      var columns = ["id", "title", "campaign", "skills", "formats", "projects", "languages", "topics", "creators", "year", "reviews", "primary_url", "slides_url", "item_url"];
+      var columns = ["id", "title", "campaigns", "skills", "formats", "projects", "languages", "topics", "creators", "year", "reviews", "primary_url", "slides_url", "item_url"];
       var rows = [columns.map(csvQuote).join(",")];
       $.each(data.results, function (i, r) {
         var row = [
-          r.id, r.title, r.campaign,
+          r.id, r.title, (r.campaigns || []).join(" | "),
           (r.skills || []).join(" | "), (r.formats || []).join(" | "), (r.projects || []).join(" | "),
           (r.languages || []).join(" | "), (r.topics || []).join(" | "), (r.creators || []).join(" | "),
           r.year, (r.reviews || []).join(" | "), r.primaryUrl, r.slidesUrl || "", r.itemUrl
@@ -341,8 +341,8 @@ function normalizeResources(data) {
       id:          r.id || "",
       title:       r.title || r.id || "",
       titleIsFallback: !!r.titleIsFallback,
-      campaignId:  r.campaignId || "",
-      campaign:    r.campaign || "",
+      campaignIds: r.campaignIds || [],
+      campaigns:   r.campaigns || [],
       skillIds:    r.skillIds || [],
       skills:      r.skills || [],
       formats:     r.formats || [],
@@ -594,20 +594,21 @@ function renderLinkIcons(resource) {
 
 function renderBadges(resource, context) {
   var html = "";
-  var campActive = state.campaigns.indexOf(resource.campaignId) !== -1 ? " is-active" : "";
   if (context === "list") {
-    if (resource.campaign) {
-      html += '<button type="button" class="row-type-label' + campActive + '" data-campaign-id="' + escapeAttribute(resource.campaignId) + '">' + escapeHtml(resource.campaign) + "</button>";
-    }
+    $.each(resource.campaignIds, function (i, campId) {
+      var campActive = state.campaigns.indexOf(campId) !== -1 ? " is-active" : "";
+      html += '<button type="button" class="row-type-label' + campActive + '" data-campaign-id="' + escapeAttribute(campId) + '">' + escapeHtml(resource.campaigns[i] || campId) + "</button>";
+    });
     $.each(resource.languages, function (j, language) {
       var langActive = state.language === language ? " is-active" : "";
       html += '<button type="button" class="row-lang-label' + langActive + '" data-language="' + escapeAttribute(language) + '">' + escapeHtml(language) + "</button>";
     });
     return html;
   }
-  if (resource.campaign) {
-    html += '<button type="button" class="badge badge--campaign badge--clickable' + campActive + '" data-campaign-id="' + escapeAttribute(resource.campaignId) + '">' + escapeHtml(resource.campaign) + "</button>";
-  }
+  $.each(resource.campaignIds, function (i, campId) {
+    var campActive = state.campaigns.indexOf(campId) !== -1 ? " is-active" : "";
+    html += '<button type="button" class="badge badge--campaign badge--clickable' + campActive + '" data-campaign-id="' + escapeAttribute(campId) + '">' + escapeHtml(resource.campaigns[i] || campId) + "</button>";
+  });
   $.each(resource.skillIds, function (i, skillId) {
     var skActive = state.skills.indexOf(skillId) !== -1 ? " is-active" : "";
     html += '<button type="button" class="badge badge--skill badge--clickable' + skActive + '" data-skill-id="' + escapeAttribute(skillId) + '">' + escapeHtml(skillLabel(skillId)) + "</button>";
