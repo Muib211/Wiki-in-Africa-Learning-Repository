@@ -52,9 +52,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 #brandTitle { cursor: pointer; transition: color .15s; background: none; border: none; padding: 0; font: inherit; text-align: left; display: flex; align-items: center; gap: 10px; }
 #brandTitle:hover { color: var(--purple); }
 .brand-logo { display: block; height: 42px; width: auto; flex: 0 0 auto; }
-.brand-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.brand-logo--partner { padding-left: 16px; border-left: 1px solid var(--border); }.data-updated-at { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-.search-panel { display: flex; gap: 8px; width: min(520px, 100%); }
+.brand-collab { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.brand-collab-label { display: block; margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.brand-logo-partner { display: block; height: 22px; width: auto; max-width: 160px; }
+.data-updated-at { margin: 4px 0 0; color: var(--muted); font-size: 12px; }.search-panel { display: flex; gap: 8px; width: min(520px, 100%); }
 .search-panel input { flex: 1; border: 1px solid var(--border); border-radius: var(--radius); padding: 9px 14px; font-size: 14px; background: white; color: var(--text); }
 .search-panel input:focus { outline: 2px solid var(--accent-dark); outline-offset: 0; border-color: var(--accent-dark); }
 .search-panel button { border: 1px solid transparent; border-radius: var(--radius); padding: 9px 16px; background: var(--ink); color: white; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: background .12s; }
