@@ -336,7 +336,9 @@ body.modal-open { overflow: hidden; }
   .subject-filter-list { max-height: 320px; }
 }
 @media (max-width: 900px) {
-  .header-inner { align-items: stretch; flex-direction: column; gap: 10px; }
+  .header-inner { grid-template-columns: 1fr; align-items: stretch; gap: 10px; }
+  .search-panel { justify-self: stretch; }
+  .site-nav { justify-self: start; }
   .site-header h1 { white-space: normal; }
   .search-panel { width: 100%; }
   .site-nav { flex-wrap: wrap; }
